@@ -449,137 +449,168 @@ active_tabs = st.tabs(tab_labels)
 with active_tabs[0]:
     st.markdown("### 📋 Nhập Thông Tin Hồ Sơ Đề Nghị Cấp Tín Dụng")
     
-    with st.form("single_app_form"):
-        col_f1, col_f2, col_f3 = st.columns(3)
+    # Preset hồ sơ mẫu nhanh
+    st.caption("⚡ **NẠP NHANH HỒ SƠ MẪU ĐỂ KIỂM THỬ KHẢ NĂNG PHÂN LOẠI CỦA MÔ HÌNH:**")
+    sc_c1, sc_c2, sc_c3 = st.columns(3)
+    
+    if 'cust_preset' not in st.session_state:
+        st.session_state.cust_preset = 'good'
         
-        with col_f1:
-            st.markdown("##### 👤 1. Thông tin Nhân thân & Thu nhập")
-            cust_age = st.number_input("Tuổi của khách hàng (năm):", min_value=18, max_value=85, value=35, step=1)
-            cust_income = st.number_input("Thu nhập hàng tháng (USD hoặc quy đổi):", min_value=0.0, max_value=100000.0, value=6500.0, step=500.0, help="Điền 0 nếu không khai báo chứng minh thu nhập")
-            cust_dependents = st.number_input("Số người phụ thuộc tài chính:", min_value=0, max_value=10, value=1, step=1)
+    with sc_c1:
+        if st.button("🟢 Mẫu Khách Hàng Tốt (Hạng 1 - Duyệt)", use_container_width=True):
+            st.session_state.cust_preset = 'good'
+            st.rerun()
+    with sc_c2:
+        if st.button("🟡 Mẫu Khách Hàng Tiệm Cận (Hạng 3 - Xem xét)", use_container_width=True):
+            st.session_state.cust_preset = 'medium'
+            st.rerun()
+    with sc_c3:
+        if st.button("🔴 Mẫu Khách Hàng Nợ Xấu (Hạng 5 - Từ chối)", use_container_width=True):
+            st.session_state.cust_preset = 'bad'
+            st.rerun()
             
-        with col_f2:
-            st.markdown("##### ⚠️ 2. Lịch sử Nợ Quá hạn (2 năm qua)")
-            late_90 = st.number_input("Số lần quá hạn nghiêm trọng >= 90 ngày:", min_value=0, max_value=20, value=0, step=1, help="Chỉ số quan trọng số 1 trong mô hình Decision Tree")
-            late_60_89 = st.number_input("Số lần quá hạn từ 60 - 89 ngày:", min_value=0, max_value=20, value=0, step=1)
-            late_30_59 = st.number_input("Số lần quá hạn từ 30 - 59 ngày:", min_value=0, max_value=20, value=0, step=1)
-            
-        with col_f3:
-            st.markdown("##### 💳 3. Đòn bẩy & Hạn mức Tín dụng")
-            utilization = st.slider("Tỷ lệ sử dụng hạn mức thẻ tín dụng (Revolving):", min_value=0.0, max_value=2.0, value=0.25, step=0.05, help="Tỷ lệ dư nợ trên hạn mức thẻ")
-            debt_ratio = st.slider("Tỷ số nợ trên thu nhập (Debt Ratio):", min_value=0.0, max_value=3.0, value=0.35, step=0.05, help="Tổng trả nợ hàng tháng / Thu nhập")
-            open_loans = st.number_input("Số khoản vay và thẻ tín dụng đang mở:", min_value=0, max_value=50, value=6, step=1)
-            re_loans = st.number_input("Số khoản vay bất động sản đang có:", min_value=0, max_value=20, value=1, step=1)
-            
-        st.markdown("---")
-        col_p1, col_p2 = st.columns([1.5, 2])
-        with col_p1:
-            product_sel = st.selectbox(
-                "🎯 Sản phẩm Tín dụng Khách hàng Đăng ký:",
-                options=['MORTGAGE', 'AUTO', 'UNSECURED', 'CREDIT_CARD'],
-                format_func=lambda x: {
-                    'MORTGAGE': '🏡 Cho vay Mua nhà (Mortgage - LGD 25%)',
-                    'AUTO': '🚗 Cho vay Mua Ô tô (Auto Loan - LGD 45%)',
-                    'UNSECURED': '💵 Vay Tiêu dùng Tín chấp (Unsecured - LGD 75%)',
-                    'CREDIT_CARD': '💳 Thẻ Tín dụng Tiêu dùng (Credit Card - LGD 85%)'
-                }[x]
-            )
-        with col_p2:
-            loan_request_amt = st.number_input(
-                "💰 Số tiền Khách hàng Đề nghị Cấp (VND):",
-                min_value=5_000_000,
-                max_value=20_000_000_000,
-                value=100_000_000,
-                step=10_000_000
-            )
-            
-        btn_score = st.form_submit_button("🚀 CHẤM ĐIỂM & PHÊ DUYỆT TỰ ĐỘNG", use_container_width=True, type="primary")
+    # Thiết lập giá trị mặc định theo preset
+    if st.session_state.cust_preset == 'good':
+        def_age, def_inc, def_dep = 35, 6500.0, 1
+        def_late90, def_late60, def_late30 = 0, 0, 0
+        def_util, def_debt, def_open, def_re = 0.15, 0.25, 6, 1
+    elif st.session_state.cust_preset == 'medium':
+        def_age, def_inc, def_dep = 42, 4500.0, 2
+        def_late90, def_late60, def_late30 = 0, 0, 1
+        def_util, def_debt, def_open, def_re = 0.75, 0.45, 8, 1
+    else: # bad
+        def_age, def_inc, def_dep = 29, 3000.0, 0
+        def_late90, def_late60, def_late30 = 2, 1, 2
+        def_util, def_debt, def_open, def_re = 0.95, 0.65, 5, 0
 
-    if btn_score:
-        cust_payload = {
-            'RevolvingUtilizationOfUnsecuredLines': utilization,
-            'age': cust_age,
-            'NumberOfTime30-59DaysPastDueNotWorse': late_30_59,
-            'DebtRatio': debt_ratio,
-            'MonthlyIncome': cust_income if cust_income > 0 else np.nan,
-            'NumberOfOpenCreditLinesAndLoans': open_loans,
-            'NumberOfTimes90DaysLate': late_90,
-            'NumberRealEstateLoansOrLines': re_loans,
-            'NumberOfTime60-89DaysPastDueNotWorse': late_60_89,
-            'NumberOfDependents': cust_dependents
-        }
+    col_f1, col_f2, col_f3 = st.columns(3)
+    
+    with col_f1:
+        st.markdown("##### 👤 1. Thông tin Nhân thân & Thu nhập")
+        cust_age = st.number_input("Tuổi của khách hàng (năm):", min_value=18, max_value=85, value=def_age, step=1, key=f"age_{st.session_state.cust_preset}")
+        cust_income = st.number_input("Thu nhập hàng tháng (USD hoặc quy đổi):", min_value=0.0, max_value=100000.0, value=def_inc, step=500.0, key=f"inc_{st.session_state.cust_preset}", help="Điền 0 nếu không khai báo chứng minh thu nhập")
+        cust_dependents = st.number_input("Số người phụ thuộc tài chính:", min_value=0, max_value=10, value=def_dep, step=1, key=f"dep_{st.session_state.cust_preset}")
         
-        res = score_single_customer(cust_payload, product_sel, market_mode, loan_request_amt)
+    with col_f2:
+        st.markdown("##### ⚠️ 2. Lịch sử Nợ Quá hạn (2 năm qua)")
+        late_90 = st.number_input("Số lần quá hạn nghiêm trọng >= 90 ngày:", min_value=0, max_value=20, value=def_late90, step=1, key=f"l90_{st.session_state.cust_preset}", help="Chỉ số quan trọng số 1: Tăng lên >= 1 lần sẽ làm điểm FICO tụt dốc ngay lập tức!")
+        late_60_89 = st.number_input("Số lần quá hạn từ 60 - 89 ngày:", min_value=0, max_value=20, value=def_late60, step=1, key=f"l60_{st.session_state.cust_preset}")
+        late_30_59 = st.number_input("Số lần quá hạn từ 30 - 59 ngày:", min_value=0, max_value=20, value=def_late30, step=1, key=f"l30_{st.session_state.cust_preset}")
         
-        st.markdown("---")
-        st.markdown("### 📊 KẾT QUẢ ĐÁNH GIÁ TÍN DỤNG & RA QUYẾT ĐỊNH TỰ ĐỘNG")
+    with col_f3:
+        st.markdown("##### 💳 3. Đòn bẩy & Hạn mức Tín dụng")
+        utilization = st.slider("Tỷ lệ sử dụng hạn mức thẻ tín dụng (Revolving):", min_value=0.0, max_value=2.0, value=def_util, step=0.05, key=f"util_{st.session_state.cust_preset}", help="Chỉ số quan trọng số 2: Kéo thanh trượt lên cao (> 0.60) để quan sát điểm FICO giảm dần")
+        debt_ratio = st.slider("Tỷ số nợ trên thu nhập (Debt Ratio):", min_value=0.0, max_value=3.0, value=def_debt, step=0.05, key=f"debt_{st.session_state.cust_preset}")
+        open_loans = st.number_input("Số khoản vay và thẻ tín dụng đang mở:", min_value=0, max_value=50, value=def_open, step=1, key=f"open_{st.session_state.cust_preset}")
+        re_loans = st.number_input("Số khoản vay bất động sản đang có:", min_value=0, max_value=20, value=def_re, step=1, key=f"re_{st.session_state.cust_preset}")
         
-        # Banner quyết định
-        if res['dec_code'] == 'APPROVED':
-            st.markdown(f'<div class="decision-approved">✅ {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
-        elif res['dec_code'] == 'CONDITIONAL':
-            st.markdown(f'<div class="decision-conditional">⚠️ {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="decision-rejected">🚫 {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
-            
-        col_res1, col_res2, col_res3 = st.columns([1.5, 1.2, 1.3])
+    st.markdown("---")
+    col_p1, col_p2 = st.columns([1.5, 2])
+    with col_p1:
+        product_sel = st.selectbox(
+            "🎯 Sản phẩm Tín dụng Khách hàng Đăng ký:",
+            options=['MORTGAGE', 'AUTO', 'UNSECURED', 'CREDIT_CARD'],
+            format_func=lambda x: {
+                'MORTGAGE': '🏡 Cho vay Mua nhà (Mortgage - LGD 25%)',
+                'AUTO': '🚗 Cho vay Mua Ô tô (Auto Loan - LGD 45%)',
+                'UNSECURED': '💵 Vay Tiêu dùng Tín chấp (Unsecured - LGD 75%)',
+                'CREDIT_CARD': '💳 Thẻ Tín dụng Tiêu dùng (Credit Card - LGD 85%)'
+            }[x]
+        )
+    with col_p2:
+        loan_request_amt = st.number_input(
+            "💰 Số tiền Khách hàng Đề nghị Cấp (VND):",
+            min_value=5_000_000,
+            max_value=20_000_000_000,
+            value=100_000_000,
+            step=10_000_000
+        )
         
-        with col_res1:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown('<div class="metric-label">ĐỒNG HỒ ĐIỂM FICO SCORECARD</div>', unsafe_allow_html=True)
-            
-            # Đồng hồ Plotly Speedometer Gauge
-            fig_gauge = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=res['fico'],
-                domain={'x': [0, 1], 'y': [0, 1]},
-                gauge={
-                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
-                    'bar': {'color': "#1E3A8A", 'thickness': 0.3},
-                    'steps': [
-                        {'range': [300, 527], 'color': "#FCA5A5"},  # Đỏ
-                        {'range': [527, 571], 'color': "#FDE68A"},  # Vàng
-                        {'range': [571, 600], 'color': "#A7F3D0"},  # Xanh nhạt
-                        {'range': [600, 850], 'color': "#34D399"}   # Xanh ngọc
-                    ],
-                    'threshold': {
-                        'line': {'color': "red", 'width': 4},
-                        'thickness': 0.75,
-                        'value': res['fico']
-                    }
+    # Tính toán trực tiếp theo thời gian thực (Real-time Reactive)
+    cust_payload = {
+        'RevolvingUtilizationOfUnsecuredLines': utilization,
+        'age': cust_age,
+        'NumberOfTime30-59DaysPastDueNotWorse': late_30_59,
+        'DebtRatio': debt_ratio,
+        'MonthlyIncome': cust_income if cust_income > 0 else np.nan,
+        'NumberOfOpenCreditLinesAndLoans': open_loans,
+        'NumberOfTimes90DaysLate': late_90,
+        'NumberRealEstateLoansOrLines': re_loans,
+        'NumberOfTime60-89DaysPastDueNotWorse': late_60_89,
+        'NumberOfDependents': cust_dependents
+    }
+    
+    res = score_single_customer(cust_payload, product_sel, market_mode, loan_request_amt)
+    
+    st.markdown("---")
+    st.markdown(f"### 📊 KẾT QUẢ ĐÁNH GIÁ TÍN DỤNG & RA QUYẾT ĐỊNH TỰ ĐỘNG <span style='font-size: 13px; font-weight: normal; color: #10B981; background: #ECFDF5; padding: 4px 10px; border-radius: 20px; border: 1px solid #A7F3D0;'>⚡ CẬP NHẬT TỨC THÌ (REAL-TIME)</span>", unsafe_allow_html=True)
+        
+    # Banner quyết định
+    if res['dec_code'] == 'APPROVED':
+        st.markdown(f'<div class="decision-approved">✅ {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
+    elif res['dec_code'] == 'CONDITIONAL':
+        st.markdown(f'<div class="decision-conditional">⚠️ {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="decision-rejected">🚫 {res["decision"]}<div style="font-size: 14px; font-weight: normal; margin-top: 5px;">{res["reason"]}</div></div>', unsafe_allow_html=True)
+        
+    col_res1, col_res2, col_res3 = st.columns([1.5, 1.2, 1.3])
+    
+    with col_res1:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown('<div class="metric-label">ĐỒNG HỒ ĐIỂM FICO SCORECARD</div>', unsafe_allow_html=True)
+        
+        # Đồng hồ Plotly Speedometer Gauge
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=res['fico'],
+            domain={'x': [0, 1], 'y': [0, 1]},
+            gauge={
+                'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
+                'bar': {'color': "#1E3A8A", 'thickness': 0.3},
+                'steps': [
+                    {'range': [300, 527], 'color': "#FCA5A5"},  # Đỏ
+                    {'range': [527, 571], 'color': "#FDE68A"},  # Vàng
+                    {'range': [571, 600], 'color': "#A7F3D0"},  # Xanh nhạt
+                    {'range': [600, 850], 'color': "#34D399"}   # Xanh ngọc
+                ],
+                'threshold': {
+                    'line': {'color': "red", 'width': 4},
+                    'thickness': 0.75,
+                    'value': res['fico']
                 }
-            ))
-            fig_gauge.update_layout(height=240, margin=dict(l=15, r=15, t=20, b=10))
-            st.plotly_chart(fig_gauge, use_container_width=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_res2:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="metric-label">XÁC SUẤT VỠ NỢ (PD)</div><div class="metric-value">{res["pd"]*100:.2f}%</div>', unsafe_allow_html=True)
-            st.caption(f"Khoảng tin cậy Wilson 95%: **{res['wilson']}**")
-            st.markdown("---")
-            st.markdown(f'<div class="metric-label">HẠNG RỦI RO DANH MỤC</div><div class="metric-value" style="font-size: 20px; color: #2563EB;">{res["grade"]}</div>', unsafe_allow_html=True)
-            st.caption(f"Phân loại nút lá: **Lá #{res['leaf_id']}**")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        with col_res3:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown(f'<div class="metric-label">NGƯỠNG HÒA VỐN SẢN PHẨM (PD*)</div><div class="metric-value">{res["pd_star"]*100:.2f}%</div>', unsafe_allow_html=True)
-            st.caption(f"Dành riêng cho: **{res['product_name']}**")
-            st.markdown("---")
-            profit_color = "#10B981" if res['profit_vnd'] >= 0 else "#EF4444"
-            st.markdown(f'<div class="metric-label">LỢI NHUẬN RÒNG KỲ VỌNG</div><div class="metric-value" style="font-size: 20px; color: {profit_color};">{res["profit_vnd"]:,.0f} VND</div>', unsafe_allow_html=True)
-            st.caption("Sau khi trừ chi phí vốn, vận hành & bù đắp rủi ro mất vốn.")
-            st.markdown('</div>', unsafe_allow_html=True)
-            
-        # Giải trình AI Hộp trắng
-        with st.expander("🔍 Xem Đường Dẫn Quy Tắc Logic Giải Trình (Explainable AI - IF...THEN)", expanded=True):
-            st.markdown(f"""
-            **Quy tắc ra quyết định trích xuất từ Cây Quyết định cho Hồ sơ này:**  
-            `IF {res['rule']} THEN PD = {res['pd']*100:.2f}% -> {res['grade']}`  
-            
-            *Hồ sơ này hoàn toàn minh bạch, đáp ứng 100% yêu cầu giải trình của Trụ cột 2 Basel II và sẵn sàng in xuất thành Tờ trình Thẩm định tín dụng.*
-            """)
+            }
+        ))
+        fig_gauge.update_layout(height=240, margin=dict(l=15, r=15, t=20, b=10))
+        st.plotly_chart(fig_gauge, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col_res2:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-label">XÁC SUẤT VỠ NỢ (PD)</div><div class="metric-value">{res["pd"]*100:.2f}%</div>', unsafe_allow_html=True)
+        st.caption(f"Khoảng tin cậy Wilson 95%: **{res['wilson']}**")
+        st.markdown("---")
+        st.markdown(f'<div class="metric-label">HẠNG RỦI RO DANH MỤC</div><div class="metric-value" style="font-size: 20px; color: #2563EB;">{res["grade"]}</div>', unsafe_allow_html=True)
+        st.caption(f"Phân loại nút lá: **Lá #{res['leaf_id']}**")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col_res3:
+        st.markdown('<div class="metric-card">', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-label">NGƯỠNG HÒA VỐN SẢN PHẨM (PD*)</div><div class="metric-value">{res["pd_star"]*100:.2f}%</div>', unsafe_allow_html=True)
+        st.caption(f"Dành riêng cho: **{res['product_name']}**")
+        st.markdown("---")
+        profit_color = "#10B981" if res['profit_vnd'] >= 0 else "#EF4444"
+        st.markdown(f'<div class="metric-label">LỢI NHUẬN RÒNG KỲ VỌNG</div><div class="metric-value" style="font-size: 20px; color: {profit_color};">{res["profit_vnd"]:,.0f} VND</div>', unsafe_allow_html=True)
+        st.caption("Sau khi trừ chi phí vốn, vận hành & bù đắp rủi ro mất vốn.")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    # Giải trình AI Hộp trắng
+    with st.expander("🔍 Xem Đường Dẫn Quy Tắc Logic Giải Trình (Explainable AI - IF...THEN)", expanded=True):
+        st.markdown(f"""
+        **Quy tắc ra quyết định trích xuất từ Cây Quyết định cho Hồ sơ này:**  
+        `IF {res['rule']} THEN PD = {res['pd']*100:.2f}% -> {res['grade']}`  
+        
+        *Hồ sơ này hoàn toàn minh bạch, đáp ứng 100% yêu cầu giải trình của Trụ cột 2 Basel II và sẵn sàng in xuất thành Tờ trình Thẩm định tín dụng.*
+        """)
 
 # ==============================================================================
 # TAB 2: CHẤM ĐIỂM DANH MỤC LÔ HÀNG LOẠT (BATCH PORTFOLIO SCORING)
