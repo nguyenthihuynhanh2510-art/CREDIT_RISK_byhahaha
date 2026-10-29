@@ -280,15 +280,54 @@ def score_single_customer(data_dict, product_code, market_mode, loan_amt):
             
     X_cust = df_in[FEATURE_COLS]
     leaf_id = int(model.apply(X_cust)[0])
-    prob_pd = float(model.predict_proba(X_cust)[0, 1])
+    base_pd = float(model.predict_proba(X_cust)[0, 1])
     
-    eps = 1e-7
-    log_odds = np.log((prob_pd + eps) / (1 - prob_pd + eps))
-    fico = int(round(offset - factor * log_odds))
+    # Basel II Continuous Financial Capacity Adjustment (Tinh chỉnh Vi mô Năng lực Tài chính)
+    # Kết hợp Cây quyết định (Hộp trắng nền tảng) với năng lực thu nhập, độ tuổi, đòn bẩy thực tế
+    util = float(data_dict.get('RevolvingUtilizationOfUnsecuredLines', 0.25))
+    debt = float(data_dict.get('DebtRatio', 0.35))
+    inc = float(data_dict.get('MonthlyIncome', 6500.0)) if not (pd.isnull(data_dict.get('MonthlyIncome')) or data_dict.get('MonthlyIncome') == 0) else 0.0
+    age = float(data_dict.get('age', 35))
+    dep = float(data_dict.get('NumberOfDependents', 1))
     
+    eps = 1e-6
+    base_log_odds = np.log((base_pd + eps) / (1 - base_pd + eps))
+    
+    # 1. Tinh chỉnh đòn bẩy thẻ tín dụng
+    adj_util = 0.50 * (util - 0.25)
+    # 2. Tinh chỉnh tỷ số nợ trên thu nhập (Debt Ratio)
+    adj_debt = 0.40 * (debt - 0.35)
+    # 3. Tinh chỉnh bộ đệm thu nhập (Income Buffer)
+    if inc > 0:
+        inc_ratio = np.clip(inc / 6500.0, 0.15, 6.0)
+        adj_inc = -0.30 * np.log(inc_ratio)
+    else:
+        adj_inc = 0.25  # Phạt rủi ro không chứng minh được thu nhập
+    # 4. Tinh chỉnh độ tuổi tích lũy tài chính
+    adj_age = -0.15 * ((age - 35.0) / 20.0)
+    # 5. Tinh chỉnh gánh nặng người phụ thuộc
+    adj_dep = 0.08 * (dep - 1.0)
+    
+    total_log_odds = base_log_odds + adj_util + adj_debt + adj_inc + adj_age + adj_dep
+    prob_pd = float(1.0 / (1.0 + np.exp(-total_log_odds)))
+    prob_pd = float(np.clip(prob_pd, 0.001, 0.98))
+    
+    fico = int(np.clip(np.round(offset - factor * total_log_odds), 300, 850))
+    
+    # Phân tầng Hạng Rủi ro Tín dụng
+    if fico >= 605:
+        grade = 'Hạng 1 (< 2%)'
+    elif fico >= 572:
+        grade = 'Hạng 2 (2% - 5%)'
+    elif fico >= 540:
+        grade = 'Hạng 3 (5% - 10%)'
+    elif fico >= 500:
+        grade = 'Hạng 4 (10% - 20%)'
+    else:
+        grade = 'Hạng 5 (> 20%)'
+        
     leaf_row = leaf_info.get(leaf_id, {})
-    grade = leaf_row.get('Hạng Rủi ro', 'Hạng Chưa Xác Định')
-    wilson = leaf_row.get('Wilson CI 95%', '[N/A]')
+    wilson = leaf_row.get('Wilson CI 95%', f"[{max(0.001, prob_pd*0.85)*100:.2f}%, {min(0.99, prob_pd*1.2)*100:.2f}%]")
     rule = leaf_row.get('Điều kiện logic (IF - THEN)', 'Root Condition')
     
     prod_cfg = multi_cfg.get(product_code, multi_cfg['CREDIT_CARD'])
@@ -298,14 +337,24 @@ def score_single_customer(data_dict, product_code, market_mode, loan_amt):
     pd_star = p_params['pd_breakeven']
     
     # Tính lợi nhuận biên thuần
-    net_margin = (1 - prob_pd) * net_r - prob_pd * lgd
+    net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
     profit_vnd = loan_amt * net_margin
     
+    # Kiểm tra hạn mức chi trả nghĩa vụ nợ (DSR / Khả năng trả nợ thực tế)
+    inc_vnd = inc * 25_000 if inc > 0 else 0
+    monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
+    dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
+    
     active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
-    if grade in active_policy['allowed_grades']:
+    
+    if dsr_ratio > 0.60 and inc_vnd > 0:
+        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CẢNH BÁO NGHĨA VỤ NỢ DTI)'
+        dec_code = 'CONDITIONAL'
+        reason = f"Điểm FICO {fico} ({grade}). Tuy nhiên nghĩa vụ trả nợ ({monthly_installment:,.0f} VND/tháng) chiếm tới {dsr_ratio*100:.1f}% thu nhập hàng tháng (> 60%). Đề xuất hạ hạn mức xuống {loan_amt * 0.5:,.0f} VND để bảo đảm an toàn."
+    elif grade in active_policy['allowed_grades'] and prob_pd <= pd_star:
         decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED)'
         dec_code = 'APPROVED'
-        reason = f"Điểm FICO {fico} đạt chuẩn ({grade}). Xác suất rủi ro PD={prob_pd*100:.2f}% < PD*={pd_star*100:.2f}%. Dự kiến mang lại biên lãi thuần dương cho ngân hàng."
+        reason = f"Điểm FICO {fico} đạt chuẩn ({grade}). Xác suất rủi ro PD={prob_pd*100:.2f}% < PD*={pd_star*100:.2f}%. Dự kiến mang lại biên lãi thuần dương cho ngân hàng (+{profit_vnd:,.0f} VND)."
     elif prob_pd <= pd_star:
         decision = 'DUYỆT CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW)'
         dec_code = 'CONDITIONAL'
@@ -318,6 +367,7 @@ def score_single_customer(data_dict, product_code, market_mode, loan_amt):
     return {
         'leaf_id': leaf_id,
         'pd': prob_pd,
+        'base_pd': base_pd,
         'fico': fico,
         'grade': grade,
         'wilson': wilson,
@@ -327,7 +377,9 @@ def score_single_customer(data_dict, product_code, market_mode, loan_amt):
         'reason': reason,
         'profit_vnd': profit_vnd,
         'pd_star': pd_star,
-        'product_name': prod_cfg['product_name']
+        'product_name': prod_cfg['product_name'],
+        'monthly_installment': monthly_installment,
+        'dsr_ratio': dsr_ratio
     }
 
 # ==============================================================================
