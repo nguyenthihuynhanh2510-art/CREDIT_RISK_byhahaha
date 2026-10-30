@@ -196,29 +196,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# HỆ THỐNG PHÂN QUYỀN ĐĂNG NHẬP & PHÂN VAI TRÒ
+# HỆ THỐNG PHÂN QUYỀN ĐĂNG NHẬP & PHÂN VAI TRÒ (RBAC)
 # ==============================================================================
-USER_ROLES = {
-    'rm': {
-        'name': 'Nguyễn Văn Minh',
-        'role_title': 'Chuyên viên QHKH Cá nhân (RM)',
+DEMO_USERS = {
+    'officer': {
+        'name': 'Nguyễn Văn An',
+        'role': 'LOAN_OFFICER',
+        'role_title': 'Chuyên viên Tín dụng (Loan Officer)',
         'password': '123',
-        'allowed_tabs': ['single', 'batch']
+        'allowed_tabs': ['single']
     },
-    'analyst': {
-        'name': 'Trần Thị Thu Thảo',
-        'role_title': 'Chuyên viên Phân tích Rủi ro Tín dụng (Credit Analyst)',
+    'manager': {
+        'name': 'Trần Thị Mai',
+        'role': 'CREDIT_MANAGER',
+        'role_title': 'Trưởng phòng Phê duyệt (Credit Manager)',
         'password': '123',
-        'allowed_tabs': ['single', 'batch', 'policy']
+        'allowed_tabs': ['single', 'batch', 'audit']
     },
-    'underwriter': {
-        'name': 'Lê Hoàng Long',
-        'role_title': 'Thẩm định viên Cao cấp (Senior Underwriter)',
-        'password': '123',
-        'allowed_tabs': ['single', 'batch', 'policy']
-    },
-    'cro': {
-        'name': 'Đặng Quốc Hùng',
+    'cro_admin': {
+        'name': 'Lê Hoàng Cường',
+        'role': 'CRO_ADMIN',
         'role_title': 'Giám đốc Quản trị Rủi ro (CRO)',
         'password': '123',
         'allowed_tabs': ['single', 'batch', 'policy', 'audit']
@@ -734,6 +731,55 @@ def generate_credit_appraisal_pdf(customer_info, financial_details, features_dic
 # ==============================================================================
 # THANH BÊN (SIDEBAR) & CẤU HÌNH BỘ CHỌN MÔ HÌNH (MODEL SELECTOR)
 # ==============================================================================
+# ==============================================================================
+# GIAO DIỆN ĐĂNG NHẬP TRUNG TÂM (AUTHENTICATION SCREEN - 1-CHẠM TIỆN LỢI)
+# ==============================================================================
+if st.session_state.user is None:
+    st.markdown("""
+    <div style="max-width: 650px; margin: 35px auto 15px auto; text-align: center;">
+        <div style="font-size: 54px;">🏦</div>
+        <h2 style="color: #0F172A; margin: 8px 0; font-size: 28px; font-weight: 800;">HỆ THỐNG SMARTCREDIT AI</h2>
+        <p style="color: #475569; font-size: 15px;">Cổng Thông Tin Thẩm Định & Quản Trị Rủi Ro Tín Dụng Đa Mô Hình (Basel II / IFRS 9)</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col_c1, col_center, col_c2 = st.columns([1, 1.8, 1])
+    with col_center:
+        st.markdown('<div class="metric-card" style="padding: 24px;">', unsafe_allow_html=True)
+        st.markdown("### ⚡ ĐĂNG NHẬP NHANH 1-CHẠM (DÀNH CHO DEMO):")
+        st.caption("Nhấp trực tiếp vào vai trò bên dưới để đăng nhập ngay mà không cần gõ mật khẩu:")
+        
+        c_btn1, c_btn2, c_btn3 = st.columns(3)
+        with c_btn1:
+            if st.button("👤 Thẩm định viên", use_container_width=True, type="primary"):
+                st.session_state.user = DEMO_USERS['officer']
+                st.rerun()
+        with c_btn2:
+            if st.button("👔 Trưởng phòng", use_container_width=True, type="primary"):
+                st.session_state.user = DEMO_USERS['manager']
+                st.rerun()
+        with c_btn3:
+            if st.button("👑 Giám đốc CRO", use_container_width=True, type="primary"):
+                st.session_state.user = DEMO_USERS['cro_admin']
+                st.rerun()
+                
+        st.markdown("---")
+        st.markdown("##### 🔐 Hoặc Đăng nhập bằng Tài khoản & Mật khẩu")
+        username_inp = st.text_input("Tên đăng nhập (Username):", placeholder="officer / manager / cro_admin")
+        password_inp = st.text_input("Mật khẩu (Password):", type="password", placeholder="Nhập 123...")
+        
+        if st.button("Đăng nhập bằng Mật khẩu", use_container_width=True):
+            if username_inp in DEMO_USERS and password_inp == DEMO_USERS[username_inp]['password']:
+                st.session_state.user = DEMO_USERS[username_inp]
+                st.rerun()
+            else:
+                st.error("Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định là: 123")
+                
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.info("💡 Hệ thống hỗ trợ phân quyền tự động theo chuẩn mực Quản trị Rủi ro Tín dụng Basel II.")
+    st.stop()
+
+
 with st.sidebar:
     st.markdown("""
     <div style="text-align: center; padding: 10px 0;">
@@ -743,30 +789,12 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.markdown("---")
     
-    # 1. Đăng nhập phân quyền
-    if st.session_state.user is None:
-        st.subheader("🔐 Đăng Nhập Hệ Thống")
-        selected_role = st.selectbox(
-            "Chọn Vai trò Người dùng:",
-            options=list(USER_ROLES.keys()),
-            format_func=lambda x: f"{USER_ROLES[x]['role_title']} - {USER_ROLES[x]['name']}"
-        )
-        pwd = st.text_input("Mật khẩu truy cập (mặc định: 123):", type="password")
-        if st.button("Đăng nhập", type="primary", use_container_width=True):
-            if pwd == USER_ROLES[selected_role]['password']:
-                st.session_state.user = USER_ROLES[selected_role]
-                st.success(f"Xin chào, {st.session_state.user['name']}!")
-                st.rerun()
-            else:
-                st.error("Mật khẩu không chính xác!")
-        st.stop()
-    else:
-        user = st.session_state.user
-        st.markdown(f"**👤 Nhân sự:** `{user['name']}`")
-        st.caption(f"**Chức danh:** {user['role_title']}")
-        if st.button("🚪 Đăng xuất", use_container_width=True):
-            st.session_state.user = None
-            st.rerun()
+    user = st.session_state.user
+    st.markdown(f"**👤 Nhân sự:** `{user['name']}`")
+    st.caption(f"**Chức danh:** {user['role_title']}")
+    if st.button("🚪 Đăng xuất", use_container_width=True):
+        st.session_state.user = None
+        st.rerun()
             
     st.markdown("---")
     
