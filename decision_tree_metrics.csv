@@ -1,0 +1,3 @@
+,AUC-ROC,Gini,KS Statistic (%),PR-AUC,Brier Score,Brier Skill Score (BSS),ECE,PD Dự báo TB (%),Nợ xấu Thực tế (%),Gini Drop (%)
+Tập Train (120k),0.8526,0.7052,55.99,0.349,0.0504,0.1916,0.0008,6.68,6.68,0.0
+Tập Test (30k),0.8521,0.7041,55.87,0.3438,0.0507,0.1875,0.0027,6.67,6.68,0.16

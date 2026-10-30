@@ -1,0 +1,135 @@
+{
+  "MORTGAGE": {
+    "product_name": "Cho vay Mua nhà có TSBĐ",
+    "params": {
+      "r": 0.045,
+      "c": 0.01,
+      "lgd": 0.25,
+      "pd_breakeven": 0.1228
+    },
+    "policies": {
+      "NORMAL": {
+        "min_score": 544,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)",
+          "Hạng 3 (5% - 10%)"
+        ]
+      },
+      "EXPANSION": {
+        "min_score": 544,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)",
+          "Hạng 3 (5% - 10%)"
+        ]
+      },
+      "RECESSION": {
+        "min_score": 572,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      }
+    }
+  },
+  "AUTO": {
+    "product_name": "Cho vay Mua Ô tô (Auto Loan)",
+    "params": {
+      "r": 0.065,
+      "c": 0.015,
+      "lgd": 0.45,
+      "pd_breakeven": 0.1
+    },
+    "policies": {
+      "NORMAL": {
+        "min_score": 552,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      },
+      "EXPANSION": {
+        "min_score": 548,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      },
+      "RECESSION": {
+        "min_score": 600,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)"
+        ]
+      }
+    }
+  },
+  "UNSECURED": {
+    "product_name": "Vay Tiêu dùng Tín chấp",
+    "params": {
+      "r": 0.14,
+      "c": 0.03,
+      "lgd": 0.75,
+      "pd_breakeven": 0.1279
+    },
+    "policies": {
+      "NORMAL": {
+        "min_score": 542,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)",
+          "Hạng 3 (5% - 10%)"
+        ]
+      },
+      "EXPANSION": {
+        "min_score": 538,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      },
+      "RECESSION": {
+        "min_score": 572,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      }
+    }
+  },
+  "CREDIT_CARD": {
+    "product_name": "Thẻ Tín dụng (Credit Card)",
+    "params": {
+      "r": 0.18,
+      "c": 0.04,
+      "lgd": 0.85,
+      "pd_breakeven": 0.1414
+    },
+    "policies": {
+      "NORMAL": {
+        "min_score": 540,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)",
+          "Hạng 3 (5% - 10%)"
+        ]
+      },
+      "EXPANSION": {
+        "min_score": 525,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)",
+          "Hạng 3 (5% - 10%)",
+          "Hạng 4 (10% - 20%)"
+        ]
+      },
+      "RECESSION": {
+        "min_score": 572,
+        "allowed_grades": [
+          "Hạng 1 (< 2%)",
+          "Hạng 2 (2% - 5%)"
+        ]
+      }
+    }
+  }
+}
