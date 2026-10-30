@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-SmartCredit AI - Cổng Thông Tin Chấm Điểm Tín Dụng & Quản Trị Rủi Ro Đa Mô Hình (Multi-Model Portal)
-Đồ án Tốt nghiệp / Dự án Quản trị Rủi ro Tín dụng (Give Me Some Credit)
-Chuẩn mực: Basel II Trụ cột 1 & 2, IFRS 9, Thẻ điểm FICO Scorecard
-Hỗ trợ: Decision Tree (Hộp trắng IF-THEN) & Logistic Regression (Continuous Log-Odds)
+SmartCredit AI - Cổng Thông Tin Chấm Điểm Tín Dụng & Quản Trị Rủi Ro Đa Mô Hình (Multi-Model Risk Portal)
+Thiết kế theo chuẩn mực Báo cáo Thường niên Ngân hàng & Chuẩn mực Basel II / IFRS 9
+Đồ án Tốt nghiệp / Dự án Quản trị Rủi ro Tín dụng Bán lẻ (Retail Credit Risk)
 """
 
 import os
@@ -17,11 +16,11 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 
-# Thư viện xuất báo cáo PDF chuẩn Ngân hàng
+# Thư viện kết xuất Báo cáo Thẩm định chuẩn A4
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, HRFlowable
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
@@ -75,23 +74,67 @@ def init_pdf_fonts():
 
 init_pdf_fonts()
 
+# ==============================================================================
+# DANH SÁCH CÁC NGÂN HÀNG & TCTD TẠI VIỆT NAM (CHO PHÉP SEARCH)
+# ==============================================================================
+VN_BANKS = [
+    "Vietcombank (VCB)",
+    "VietinBank (CTG)",
+    "BIDV",
+    "Agribank",
+    "Techcombank (TCB)",
+    "MBBank (MB)",
+    "VPBank (VPB)",
+    "ACB",
+    "HDBank (HDB)",
+    "Sacombank (STB)",
+    "VIB",
+    "TPBank (TPB)",
+    "SHB",
+    "SeABank (SSB)",
+    "OCB",
+    "MSB",
+    "Eximbank (EIB)",
+    "LPBank (LPB)",
+    "Nam A Bank (NAB)",
+    "Bac A Bank (BAB)",
+    "BVBank (BVB)",
+    "VietABank (VAB)",
+    "Kienlongbank (KLB)",
+    "Saigonbank (SGB)",
+    "BaoViet Bank (BVB)",
+    "PG Bank (PGB)",
+    "PVcomBank",
+    "SCB",
+    "Shinhan Bank Vietnam",
+    "HSBC Vietnam",
+    "Standard Chartered Vietnam",
+    "UOB Vietnam",
+    "Woori Bank Vietnam",
+    "Citibank Vietnam",
+    "CIMB Vietnam",
+    "Hong Leong Bank Vietnam",
+    "Public Bank Vietnam",
+    "Tổ chức tín dụng khác (Khác)"
+]
 
 # ==============================================================================
-# CẤU HÌNH TRANG & GIAO DIỆN STREAMLIT
+# CẤU HÌNH TRANG & GIAO DIỆN PHONG CÁCH BÁO CÁO THƯỜNG NIÊN HDBANK
 # ==============================================================================
 st.set_page_config(
-    page_title="SmartCredit AI | Multi-Model Risk Portal",
+    page_title="SmartCredit AI | Banking Risk Portal",
     page_icon="🏦",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS phong cách Fintech / Ngân hàng cao cấp
+# Custom CSS phong cách Báo cáo thường niên Ngân hàng cao cấp (HDBank inspired)
 st.markdown("""
 <style>
     :root {
         --primary-navy: #0F172A;
         --secondary-navy: #1E3A8A;
+        --accent-gold: #D97706;
         --accent-blue: #2563EB;
         --success-emerald: #10B981;
         --warning-amber: #F59E0B;
@@ -100,32 +143,79 @@ st.markdown("""
         --border-color: #E2E8F0;
     }
     
+    /* Header chính */
     .main-header {
-        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 50%, #1E40AF 100%);
+        background: linear-gradient(135deg, #0A192F 0%, #1E3A8A 60%, #1E40AF 100%);
         color: white;
-        padding: 22px 28px;
-        border-radius: 12px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 15px rgba(15, 23, 42, 0.15);
+        padding: 26px 32px;
+        border-radius: 14px;
+        margin-bottom: 22px;
+        box-shadow: 0 8px 25px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .main-header h1 {
         color: white;
         margin: 0;
-        font-size: 25px;
-        font-weight: 700;
+        font-size: 26px;
+        font-weight: 800;
         letter-spacing: -0.5px;
     }
     .main-header p {
         color: #93C5FD;
-        margin: 4px 0 0 0;
-        font-size: 13.5px;
+        margin: 6px 0 0 0;
+        font-size: 14px;
     }
+    
+    /* Card kiểu HDBank Annual Report */
+    .hdb-card {
+        background: #FFFFFF;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 20px 24px;
+        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
+        margin-bottom: 18px;
+        transition: all 0.25s ease;
+    }
+    .hdb-card:hover {
+        border-color: #CBD5E1;
+        box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
+    }
+    
+    /* Tiêu đề phân đoạn có số badge nổi bật */
+    .hdb-section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 10px;
+        margin-bottom: 14px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #F1F5F9;
+    }
+    .hdb-badge {
+        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
+        color: #F8FAFC;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 4px 11px;
+        border-radius: 6px;
+        letter-spacing: 0.5px;
+        box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+    }
+    .hdb-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0F172A;
+        letter-spacing: -0.2px;
+        text-transform: uppercase;
+    }
+    
+    /* Thẻ đo lường */
     .metric-card {
         background-color: var(--card-bg);
         border: 1px solid var(--border-color);
-        border-radius: 10px;
-        padding: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        border-radius: 12px;
+        padding: 18px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
         margin-bottom: 14px;
     }
     .metric-label {
@@ -137,10 +227,12 @@ st.markdown("""
     }
     .metric-value {
         font-size: 26px;
-        font-weight: 700;
+        font-weight: 800;
         color: #0F172A;
         margin: 4px 0;
     }
+    
+    /* Quyết định phê duyệt */
     .decision-approved {
         background-color: #ECFDF5;
         border-left: 5px solid #10B981;
@@ -174,18 +266,27 @@ st.markdown("""
     .reconciliation-box {
         background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
         border: 1px solid #BFDBFE;
-        border-radius: 10px;
-        padding: 14px 18px;
-        margin-top: 10px;
-        margin-bottom: 15px;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-top: 12px;
+        margin-bottom: 16px;
     }
+    .summary-strip {
+        background-color: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        padding: 12px 18px;
+        border-radius: 10px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+    }
+    
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
     .stTabs [data-baseweb="tab"] {
         background-color: #F1F5F9;
         border-radius: 8px 8px 0px 0px;
-        padding: 8px 16px;
+        padding: 9px 18px;
         font-weight: 600;
     }
     .stTabs [aria-selected="true"] {
@@ -263,24 +364,20 @@ def load_multi_model_risk_assets():
         r"D:\AI\project AI\3 mô hình được chọn\models\standard_scaler.pkl"
     ]
 
-    # 1. Nạp Model Decision Tree
     p_dt = next((p for p in possible_models_dt if os.path.exists(p)), None)
     if p_dt is None:
         raise FileNotFoundError("Không tìm thấy tệp decision_tree_model.pkl!")
     dt_model = joblib.load(p_dt)
 
-    # 2. Nạp Model Logistic Regression & Scaler
     p_lr = next((p for p in possible_models_lr if os.path.exists(p)), None)
     lr_model = joblib.load(p_lr) if p_lr else None
 
     p_sc = next((p for p in possible_scaler if os.path.exists(p)), None)
     scaler = joblib.load(p_sc) if p_sc else None
 
-    # 3. File quy tắc nút lá Decision Tree
     leaf_file = next((os.path.join(d, "decision_tree_leaf_rules.csv") for d in possible_dirs if os.path.exists(os.path.join(d, "decision_tree_leaf_rules.csv"))), None)
     leaf_df = pd.read_csv(leaf_file) if leaf_file else pd.DataFrame()
 
-    # 4. Cấu hình đa sản phẩm DT
     cfg_dt_file = next((os.path.join(d, "multi_product_policy_config.json") for d in possible_dirs if os.path.exists(os.path.join(d, "multi_product_policy_config.json"))), None)
     if cfg_dt_file:
         with open(cfg_dt_file, "r", encoding="utf-8") as f:
@@ -293,7 +390,6 @@ def load_multi_model_risk_assets():
             'CREDIT_CARD': {'product_name': 'Thẻ Tín dụng (Credit Card)', 'params': {'r': 0.180, 'c': 0.040, 'lgd': 0.850, 'pd_breakeven': 0.1414}, 'policies': {'NORMAL': {'min_score': 542, 'allowed_grades': ['Hạng 1 (< 2%)', 'Hạng 2 (2% - 5%)', 'Hạng 3 (5% - 10%)']}, 'EXPANSION': {'min_score': 527, 'allowed_grades': ['Hạng 1 (< 2%)', 'Hạng 2 (2% - 5%)', 'Hạng 3 (5% - 10%)', 'Hạng 4 (10% - 20%)']}, 'RECESSION': {'min_score': 572, 'allowed_grades': ['Hạng 1 (< 2%)', 'Hạng 2 (2% - 5%)']}}}
         }
 
-    # 5. Cấu hình đa sản phẩm Logistic
     cfg_lr_file = next((os.path.join(d, "logistic_multi_product_policy_config.json") for d in possible_dirs if os.path.exists(os.path.join(d, "logistic_multi_product_policy_config.json"))), None)
     if cfg_lr_file:
         with open(cfg_lr_file, "r", encoding="utf-8") as f:
@@ -301,7 +397,6 @@ def load_multi_model_risk_assets():
     else:
         lr_cfg = dt_cfg
 
-    # 6. Các bảng kiểm định metrics
     p_dt_met = next((os.path.join(d, "decision_tree_metrics.csv") for d in possible_dirs if os.path.exists(os.path.join(d, "decision_tree_metrics.csv"))), None)
     dt_metrics_df = pd.read_csv(p_dt_met) if p_dt_met else pd.DataFrame()
 
@@ -311,7 +406,6 @@ def load_multi_model_risk_assets():
     p_feat = next((os.path.join(d, "decision_tree_feature_importance.csv") for d in possible_dirs if os.path.exists(os.path.join(d, "decision_tree_feature_importance.csv"))), None)
     feat_df = pd.read_csv(p_feat) if p_feat else pd.DataFrame()
 
-    # Tham số chuẩn FICO Scorecard
     pdo = 20.0
     base_score = 600.0
     base_odds = 50.0
@@ -327,7 +421,6 @@ except Exception as e:
     st.error(f"Lỗi khi nạp dữ liệu mô hình: {e}")
     st.stop()
 
-# Danh sách đặc trưng chuẩn
 FEATURE_COLS = [
     'RevolvingUtilizationOfUnsecuredLines', 'age',
     'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
@@ -355,7 +448,6 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     leaf_id = int(dt_model.apply(X_cust)[0])
     base_pd = float(dt_model.predict_proba(X_cust)[0, 1])
     
-    # Tinh chỉnh vi mô năng lực tài chính
     util = float(data_dict.get('RevolvingUtilizationOfUnsecuredLines', 0.25))
     debt = float(data_dict.get('DebtRatio', 0.35))
     inc = float(data_dict.get('MonthlyIncome', 6000.0)) if not (pd.isnull(data_dict.get('MonthlyIncome')) or data_dict.get('MonthlyIncome') == 0) else 0.0
@@ -399,7 +491,6 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
     profit_vnd = loan_amt * net_margin
     
-    # Kiểm tra DSR
     inc_vnd = inc * 25_000 if inc > 0 else 0
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
@@ -463,7 +554,6 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     X_df = df_in[FEATURE_COLS]
     X_scaled_df = pd.DataFrame(scaler.transform(X_df), columns=FEATURE_COLS)
     
-    # Dự báo xác suất PD liên tục
     prob_pd = float(lr_model.predict_proba(X_scaled_df)[0, 1])
     prob_pd = float(np.clip(prob_pd, 0.0001, 0.9999))
     
@@ -516,7 +606,6 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
         dec_code = 'REJECTED'
         reason = f"Xác suất vỡ nợ PD={prob_pd*100:.2f}% vượt ngưỡng an toàn PD*={pd_star*100:.2f}%, gây tổn thất dự kiến (-{abs(profit_vnd):,.0f} VND)."
         
-    # Tính chi tiết đóng góp từng biến số trong phương trình Log-odds
     top_driver = "Đòn bẩy thẻ tín dụng & Lịch sử quá hạn"
     if 'RevolvingUtilizationOfUnsecuredLines' in X_df.columns and X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0] > 0.6:
         top_driver = "Tỷ lệ sử dụng hạn mức thẻ tín dụng cao"
@@ -544,102 +633,124 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     }
 
 # ==============================================================================
-# HÀM XUẤT BÁO CÁO THẨM ĐỊNH TÍN DỤNG CHUYÊN NGHIỆP RA FILE PDF
+# HÀM XUẤT TỜ TRÌNH THẨM ĐỊNH TÍN DỤNG TRẮNG - ĐEN (CHỈ SỐ THỰC TẾ, KHÔNG NHẬN XÉT MODEL)
 # ==============================================================================
-def generate_credit_appraisal_pdf(customer_info, financial_details, features_dict, dt_res, lr_res, selected_mode, prod_cfg, market_mode):
+def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_items, loan_items, features_dict, dt_res, lr_res, selected_mode, prod_cfg, market_mode):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer, pagesize=A4,
-        leftMargin=30, rightMargin=30, topMargin=28, bottomMargin=28
+        leftMargin=32, rightMargin=32, topMargin=28, bottomMargin=28
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle('DocTitle', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=14, leading=17, textColor=colors.HexColor('#0F172A'), alignment=1)
-    sub_style = ParagraphStyle('SubTitle', parent=styles['Normal'], fontName=PDF_FONT_NORMAL, fontSize=8.5, leading=12, textColor=colors.HexColor('#475569'), alignment=1)
-    sec_hdr = ParagraphStyle('SecHdr', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=9.5, leading=13, textColor=colors.HexColor('#1E3A8A'))
-    c_txt = ParagraphStyle('CellTxt', parent=styles['Normal'], fontName=PDF_FONT_NORMAL, fontSize=7.5, leading=10, textColor=colors.HexColor('#1E293B'))
-    c_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=7.5, leading=10, textColor=colors.HexColor('#0F172A'))
-    c_hdr = ParagraphStyle('CellHdr', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=7.5, leading=10, textColor=colors.white, alignment=1)
-    c_alert = ParagraphStyle('CellAlert', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=7.5, leading=10, textColor=colors.HexColor('#B91C1C'))
-    c_success = ParagraphStyle('CellSuccess', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=7.5, leading=10, textColor=colors.HexColor('#047857'))
-    note_txt = ParagraphStyle('NoteTxt', parent=styles['Normal'], fontName=PDF_FONT_ITALIC, fontSize=7, leading=9, textColor=colors.HexColor('#64748B'))
+    
+    title_style = ParagraphStyle('DocTitle', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=12.5, leading=15, textColor=colors.black, alignment=1)
+    sub_style = ParagraphStyle('SubTitle', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=8.5, leading=11, textColor=colors.black, alignment=1)
+    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontName=PDF_FONT_NORMAL, fontSize=7.5, leading=9.5, textColor=colors.black, alignment=1)
+    sec_hdr = ParagraphStyle('SecHdr', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=8.5, leading=11, textColor=colors.black)
+    c_txt = ParagraphStyle('CellTxt', parent=styles['Normal'], fontName=PDF_FONT_NORMAL, fontSize=7, leading=9, textColor=colors.black)
+    c_bold = ParagraphStyle('CellBold', parent=styles['Normal'], fontName=PDF_FONT_BOLD, fontSize=7, leading=9, textColor=colors.black)
+    note_txt = ParagraphStyle('NoteTxt', parent=styles['Normal'], fontName=PDF_FONT_ITALIC, fontSize=6.5, leading=8.5, textColor=colors.black)
 
     elements = []
 
-    # 1. Header văn bản
-    elements.append(Paragraph("SMARTCREDIT BANKING AI PORTAL - HỆ THỐNG QUẢN TRỊ RỦI RO BÁN LẺ", title_style))
-    elements.append(Paragraph("PHIẾU THẨM ĐỊNH RỦI RO TÍN DỤNG & PHÊ DUYỆT ĐA MÔ HÌNH (CHUẨN BASEL II / IFRS 9)", sub_style))
-    elements.append(Spacer(1, 6))
-    elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#1E3A8A'), spaceBefore=1, spaceAfter=8))
+    # 1. Tiêu ngữ Ngân hàng (Chuẩn văn bản Trắng - Đen)
+    elements.append(Paragraph("NGÂN HÀNG THƯƠNG MẠI CỔ PHẦN - KHỐI QUẢN TRỊ RỦI RO", title_style))
+    elements.append(Paragraph("TỜ TRÌNH THẨM ĐỊNH TÍN DỤNG & ĐO LƯỜNG RỦI RO ĐA MÔ HÌNH", sub_style))
+    elements.append(Paragraph(f"Mã hồ sơ: {customer_info.get('app_id', 'HS-2026')} | Ngày lập: {datetime.date.today().strftime('%d/%m/%Y')} | Cán bộ lập: {customer_info.get('officer_name', 'Cán bộ tín dụng')}", meta_style))
+    elements.append(Spacer(1, 3))
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.black, spaceBefore=1, spaceAfter=5))
 
     # 2. Thông tin chung
-    elements.append(Paragraph("I. THÔNG TIN HỒ SƠ ĐỀ NGHỊ CẤP TÍN DỤNG", sec_hdr))
-    elements.append(Spacer(1, 3))
+    elements.append(Paragraph("I. THÔNG TIN KHÁCH HÀNG & KHOẢN VAY ĐỀ NGHỊ", sec_hdr))
+    elements.append(Spacer(1, 2))
     
     t_info_data = [
-        [Paragraph("Mã hồ sơ:", c_bold), Paragraph(str(customer_info.get('app_id', 'HS-2026-001')), c_txt),
-         Paragraph("Ngày thẩm định:", c_bold), Paragraph(datetime.date.today().strftime("%d/%m/%Y"), c_txt)],
-        [Paragraph("Khách hàng / CCCD:", c_bold), Paragraph(str(customer_info.get('cust_name', 'Nguyễn Văn An')), c_txt),
+        [Paragraph("Khách hàng / CCCD:", c_bold), Paragraph(str(customer_info.get('cust_name', 'N/A')), c_txt),
          Paragraph("Độ tuổi / Phụ thuộc:", c_bold), Paragraph(f"{features_dict.get('age', 35)} tuổi | {features_dict.get('NumberOfDependents', 1)} người", c_txt)],
-        [Paragraph("Sản phẩm đề nghị:", c_bold), Paragraph(str(prod_cfg.get('product_name', 'Vay Tiêu Dùng')), c_txt),
-         Paragraph("Số tiền đề nghị cấp:", c_bold), Paragraph(f"{customer_info.get('loan_amount', 100_000_000):,.0f} VND", c_txt)],
+        [Paragraph("Sản phẩm cấp tín dụng:", c_bold), Paragraph(str(prod_cfg.get('product_name', 'N/A')), c_txt),
+         Paragraph("Số tiền đề nghị cấp:", c_bold), Paragraph(f"{customer_info.get('loan_amount', 100_000_000):,.0f} VND", c_bold)],
         [Paragraph("Kịch bản thị trường:", c_bold), Paragraph(f"Chế độ {market_mode}", c_txt),
          Paragraph("Lãi suất r / Chi phí vốn c:", c_bold), Paragraph(f"{prod_cfg['params']['r']*100:.1f}% / {prod_cfg['params']['c']*100:.1f}% | LGD: {prod_cfg['params']['lgd']*100:.1f}%", c_txt)]
     ]
-    t_info = Table(t_info_data, colWidths=[105, 160, 115, 155])
+    t_info = Table(t_info_data, colWidths=[110, 160, 110, 150])
     t_info.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-        ('TOPPADDING', (0,0), (-1,-1), 2.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
     elements.append(t_info)
-    elements.append(Spacer(1, 7))
+    elements.append(Spacer(1, 5))
 
-    # 3. Năng lực tài chính & Cơ cấu nghĩa vụ nợ
-    elements.append(Paragraph("II. BẢNG PHÂN RÃ THU NHẬP & CƠ CẤU NGHĨA VỤ NỢ CHI TIẾT", sec_hdr))
-    elements.append(Spacer(1, 3))
+    # 3. Phân rã thu nhập & Nghĩa vụ nợ chi tiết
+    elements.append(Paragraph("II. NĂNG LỰC TÀI CHÍNH & NGHĨA VỤ TRẢ NỢ HÀNG THÁNG", sec_hdr))
+    elements.append(Spacer(1, 2))
     
-    fin_data = [
-        [Paragraph("Nguồn thu nhập chi tiết", c_hdr), Paragraph("Số tiền (VND/tháng)", c_hdr),
-         Paragraph("Khoản nợ & Thẻ tín dụng", c_hdr), Paragraph("Nghĩa vụ hàng tháng / Dư nợ", c_hdr)],
-        [Paragraph("1. Lương & HĐLĐ", c_txt), Paragraph(f"{financial_details.get('income_salary', 0):,.0f} VND", c_bold),
-         Paragraph(f"• Thẻ TD: {financial_details.get('card_count', 0)} thẻ (Hạn mức: {financial_details.get('total_card_limit', 0):,.0f} VND)", c_txt),
-         Paragraph(f"Dư nợ: {financial_details.get('total_card_balance', 0):,.0f} VND ({features_dict.get('RevolvingUtilizationOfUnsecuredLines', 0)*100:.1f}%)", c_txt)],
-        [Paragraph("2. Cho thuê tài sản (nhà, xe...)", c_txt), Paragraph(f"{financial_details.get('income_rental', 0):,.0f} VND", c_bold),
-         Paragraph(f"• Nợ vay: {financial_details.get('loan_count', 0)} khoản đang mở", c_txt),
-         Paragraph(f"Tổng dư nợ còn lại: {financial_details.get('total_loan_balance', 0):,.0f} VND", c_txt)],
-        [Paragraph("3. Cổ tức / Lợi nhuận kinh doanh", c_txt), Paragraph(f"{financial_details.get('income_business', 0):,.0f} VND", c_bold),
-         Paragraph("• Nghĩa vụ trả nợ vay hàng tháng", c_txt), Paragraph(f"{financial_details.get('monthly_debt_repayment', 0):,.0f} VND/tháng", c_bold)],
-        [Paragraph("4. Thu nhập khác có chứng minh", c_txt), Paragraph(f"{financial_details.get('income_other', 0):,.0f} VND", c_bold),
-         Paragraph("• Dự kiến góp khoản vay mới", c_txt), Paragraph(f"{financial_details.get('monthly_new_installment', 0):,.0f} VND/tháng", c_bold)],
-        [Paragraph("TỔNG THU NHẬP HÀNG THÁNG", c_bold), Paragraph(f"{financial_details.get('total_income_vnd', 0):,.0f} VND", c_bold),
-         Paragraph("TỔNG NGHĨA VỤ NỢ & TỶ LỆ DSR", c_bold), Paragraph(f"{financial_details.get('total_debt_monthly', 0):,.0f} VND/th | DSR: {financial_details.get('dsr_pct', 0):.1f}%", c_bold)]
+    fin_summary = [
+        [Paragraph("Nguồn Thu Nhập Thực Nhận", c_bold), Paragraph("Số Tiền (VND/tháng)", c_bold),
+         Paragraph("Chỉ Tiêu Nghĩa Vụ Nợ", c_bold), Paragraph("Giá Trị Tính Toán", c_bold)],
+        [Paragraph("1. Lương & HĐLĐ cố định", c_txt), Paragraph(f"{financial_details.get('income_salary', 0):,.0f} VND", c_txt),
+         Paragraph("• Tổng dư nợ thẻ tín dụng", c_txt), Paragraph(f"{financial_details.get('total_card_balance', 0):,.0f} VND ({financial_details.get('card_count', 0)} thẻ)", c_txt)],
+        [Paragraph("2. Cho thuê tài sản (nhà, đất, xe)", c_txt), Paragraph(f"{financial_details.get('income_rental', 0):,.0f} VND", c_txt),
+         Paragraph("• Tổng dư nợ khoản vay TCTD", c_txt), Paragraph(f"{financial_details.get('total_loan_balance', 0):,.0f} VND ({financial_details.get('loan_count', 0)} khoản)", c_txt)],
+        [Paragraph("3. Cổ tức / Kinh doanh / Đầu tư", c_txt), Paragraph(f"{financial_details.get('income_business', 0):,.0f} VND", c_txt),
+         Paragraph("• Nghĩa vụ trả nợ vay hiện hữu", c_txt), Paragraph(f"{financial_details.get('monthly_debt_repayment', 0):,.0f} VND/tháng", c_txt)],
+        [Paragraph("4. Thu nhập hợp pháp khác", c_txt), Paragraph(f"{financial_details.get('income_other', 0):,.0f} VND", c_txt),
+         Paragraph("• Dự kiến góp khoản vay mới", c_txt), Paragraph(f"{financial_details.get('monthly_new_installment', 0):,.0f} VND/tháng", c_txt)],
+        [Paragraph("TỔNG THU NHẬP THỰC NHẬN", c_bold), Paragraph(f"{financial_details.get('total_income_vnd', 0):,.0f} VND/tháng", c_bold),
+         Paragraph("TỔNG NGHĨA VỤ NỢ & TỶ SỐ DSR", c_bold), Paragraph(f"{financial_details.get('total_debt_monthly', 0):,.0f} VND/th | DSR: {financial_details.get('dsr_pct', 0):.1f}%", c_bold)]
     ]
-    t_fin = Table(fin_data, colWidths=[135, 130, 140, 130])
+    t_fin = Table(fin_summary, colWidths=[140, 125, 140, 125])
     t_fin.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1E3A8A')),
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#EFF6FF')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-        ('TOPPADDING', (0,0), (-1,-1), 2.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
     elements.append(t_fin)
-    elements.append(Spacer(1, 7))
+    elements.append(Spacer(1, 5))
 
-    # 4. Bảng 11 Đặc trưng đầu vào
-    elements.append(Paragraph("III. DANH SÁCH 11 ĐẶC TRƯNG CHẤM ĐIỂM BASEL II (INPUT FEATURES)", sec_hdr))
-    elements.append(Spacer(1, 3))
+    # 4. Chi tiết Thẻ tín dụng và Khoản nợ vay thực tế (nếu có)
+    if card_items or loan_items:
+        detail_rows = [[Paragraph("Danh Mục Thẻ Tín Dụng & Khoản Vay Đang Mở", c_bold), Paragraph("Ngân hàng / TCTD", c_bold), Paragraph("Hạn Mức / Dư Nợ", c_bold), Paragraph("Nghĩa Vụ Hàng Tháng", c_bold)]]
+        for c in card_items:
+            detail_rows.append([
+                Paragraph(f"Thẻ: {c.get('name', 'Thẻ TD')}", c_txt),
+                Paragraph(str(c.get('bank', 'N/A')), c_txt),
+                Paragraph(f"HM: {c.get('limit', 0):,.0f} | DN: {c.get('balance', 0):,.0f}", c_txt),
+                Paragraph(f"Dùng: {(c.get('balance', 0)/c.get('limit', 1)*100) if c.get('limit', 0)>0 else 0:.1f}%", c_txt)
+            ])
+        for l in loan_items:
+            detail_rows.append([
+                Paragraph(f"Vay: {l.get('loan_type', 'Khoản vay')}", c_txt),
+                Paragraph(str(l.get('bank', 'N/A')), c_txt),
+                Paragraph(f"Dư nợ: {l.get('balance', 0):,.0f} ({l.get('months_left', 1)} th còn)", c_txt),
+                Paragraph(f"Góp: {l.get('monthly_pay', 0):,.0f} đ/th", c_txt)
+            ])
+        t_det = Table(detail_rows, colWidths=[140, 130, 135, 125])
+        t_det.setStyle(TableStyle([
+            ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+            ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+            ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
+            ('TOPPADDING', (0,0), (-1,-1), 1.5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+        ]))
+        elements.append(t_det)
+        elements.append(Spacer(1, 5))
+
+    # 5. Bảng 11 Đặc trưng đầu vào (Basel II Features)
+    elements.append(Paragraph("III. DANH SÁCH 11 ĐẶC TRƯNG CHẤM ĐIỂM (BASEL II INPUT FEATURES)", sec_hdr))
+    elements.append(Spacer(1, 2))
     
     feat_rows = [
-        [Paragraph("Đặc trưng chấm điểm", c_hdr), Paragraph("Giá trị thực tế", c_hdr),
-         Paragraph("Đặc trưng chấm điểm", c_hdr), Paragraph("Giá trị thực tế", c_hdr)],
-        [Paragraph("1. Tỷ lệ sử dụng thẻ tín dụng", c_txt), Paragraph(f"{features_dict.get('RevolvingUtilizationOfUnsecuredLines', 0)*100:.2f}%", c_bold),
-         Paragraph("7. Số lần trễ hạn 90+ ngày", c_txt), Paragraph(f"{features_dict.get('NumberOfTimes90DaysLate', 0)} lần", c_bold)],
+        [Paragraph("Chỉ số Đặc trưng", c_bold), Paragraph("Giá trị đo lường", c_bold),
+         Paragraph("Chỉ số Đặc trưng", c_bold), Paragraph("Giá trị đo lường", c_bold)],
+        [Paragraph("1. Tỷ lệ sử dụng thẻ (Revolving)", c_txt), Paragraph(f"{features_dict.get('RevolvingUtilizationOfUnsecuredLines', 0)*100:.2f}%", c_bold),
+         Paragraph("7. Số lần trễ hạn >= 90 ngày", c_txt), Paragraph(f"{features_dict.get('NumberOfTimes90DaysLate', 0)} lần", c_bold)],
         [Paragraph("2. Độ tuổi khách hàng", c_txt), Paragraph(f"{features_dict.get('age', 0)} tuổi", c_bold),
-         Paragraph("8. Số khoản vay BĐS / Thế chấp", c_txt), Paragraph(f"{features_dict.get('NumberRealEstateLoansOrLines', 0)} khoản", c_bold)],
+         Paragraph("8. Số khoản vay BĐS/thế chấp (CIC)", c_txt), Paragraph(f"{features_dict.get('NumberRealEstateLoansOrLines', 0)} khoản", c_bold)],
         [Paragraph("3. Số lần quá hạn 30-59 ngày", c_txt), Paragraph(f"{features_dict.get('NumberOfTime30-59DaysPastDueNotWorse', 0)} lần", c_bold),
          Paragraph("9. Số lần quá hạn 60-89 ngày", c_txt), Paragraph(f"{features_dict.get('NumberOfTime60-89DaysPastDueNotWorse', 0)} lần", c_bold)],
         [Paragraph("4. Tỷ số nợ trên thu nhập (DebtRatio)", c_txt), Paragraph(f"{features_dict.get('DebtRatio', 0):.4f}", c_bold),
@@ -647,81 +758,78 @@ def generate_credit_appraisal_pdf(customer_info, financial_details, features_dic
         [Paragraph("5. Thu nhập tháng (Model Scale)", c_txt), Paragraph(f"{features_dict.get('MonthlyIncome', 0):,.1f} USD (~{financial_details.get('total_income_vnd', 0):,.0f}đ)", c_bold),
          Paragraph("11. Cờ khuyết thu nhập gốc", c_txt), Paragraph("Không khuyết (0)" if features_dict.get('MonthlyIncome_is_missing', 0)==0 else "Có khuyết (1)", c_bold)],
         [Paragraph("6. Số hạn mức/khoản vay đang mở", c_txt), Paragraph(f"{features_dict.get('NumberOfOpenCreditLinesAndLoans', 0)} tài khoản", c_bold),
-         Paragraph("— Nghĩa vụ nợ DSR / DTI", c_txt), Paragraph("An toàn (<=60%)" if financial_details.get('dsr_pct', 0)<=60 else "Cảnh báo (>60%)", c_bold)]
+         Paragraph("— Tình trạng nghĩa vụ nợ DSR", c_txt), Paragraph("Đạt chuẩn (<=60%)" if financial_details.get('dsr_pct', 0)<=60 else "Cảnh báo (>60%)", c_bold)]
     ]
-    t_feat = Table(feat_rows, colWidths=[140, 125, 140, 130])
+    t_feat = Table(feat_rows, colWidths=[140, 125, 140, 125])
     t_feat.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#334155')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
+        ('TOPPADDING', (0,0), (-1,-1), 1.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+    ]))
+    elements.append(t_feat)
+    elements.append(Spacer(1, 5))
+
+    # 6. Bảng kết quả đo lường mô hình (Factual Measurement - Không có giải thích AI dài dòng)
+    elements.append(Paragraph("IV. KẾT QUẢ ĐO LƯỜNG TỪ MÔ HÌNH TÍN DỤNG (MODEL MEASUREMENT)", sec_hdr))
+    elements.append(Spacer(1, 2))
+    
+    eval_matrix = [
+        [Paragraph("Chỉ Tiêu Đo Lường", c_bold), 
+         Paragraph("MÔ HÌNH CÂY QUYẾT ĐỊNH (DECISION TREE)", c_bold), 
+         Paragraph("MÔ HÌNH HỒI QUY LOGISTIC (LOGISTIC REGRESSION)", c_bold)],
+        [Paragraph("1. Điểm tín dụng FICO Score", c_bold), 
+         Paragraph(f"{dt_res.get('fico', 0)} điểm", c_bold), 
+         Paragraph(f"{lr_res.get('fico', 0)} điểm (Chênh lệch: {dt_res.get('fico',0)-lr_res.get('fico',0):+d})", c_bold)],
+        [Paragraph("2. Phân tầng Hạng Rủi ro", c_bold), 
+         Paragraph(str(dt_res.get('grade', 'N/A')), c_txt), 
+         Paragraph(str(lr_res.get('grade', 'N/A')), c_txt)],
+        [Paragraph("3. Xác suất vỡ nợ dự báo (PD)", c_bold), 
+         Paragraph(f"{dt_res.get('pd', 0)*100:.2f}% (Wilson 95%: {dt_res.get('wilson', 'N/A')})", c_txt), 
+         Paragraph(f"{lr_res.get('pd', 0)*100:.2f}%", c_txt)],
+        [Paragraph("4. Ngưỡng hòa vốn an toàn (PD*)", c_bold), 
+         Paragraph(f"{dt_res.get('pd_star', 0.1414)*100:.2f}%", c_txt), 
+         Paragraph(f"{lr_res.get('pd_star', 0.1414)*100:.2f}%", c_txt)],
+        [Paragraph("5. Lợi nhuận ròng dự kiến (+/- VND)", c_bold), 
+         Paragraph(f"{dt_res.get('profit_vnd', 0):+,.0f} VND", c_bold), 
+         Paragraph(f"{lr_res.get('profit_vnd', 0):+,.0f} VND", c_bold)],
+        [Paragraph("6. Đề xuất quyết định thẩm định", c_bold), 
+         Paragraph(f"[{dt_res.get('decision', 'N/A')}]", c_bold), 
+         Paragraph(f"[{lr_res.get('decision', 'N/A')}]", c_bold)]
+    ]
+    t_eval = Table(eval_matrix, colWidths=[130, 200, 200])
+    t_eval.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 0.5, colors.black),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.black),
+        ('LINEBELOW', (0,0), (-1,0), 1, colors.black),
+        ('LINEBELOW', (0,-2), (-1,-1), 1, colors.black),
         ('TOPPADDING', (0,0), (-1,-1), 2),
         ('BOTTOMPADDING', (0,0), (-1,-1), 2),
     ]))
-    elements.append(t_feat)
-    elements.append(Spacer(1, 7))
-
-    # 5. Kết quả thẩm định Đa Mô hình (Đối sánh Song song)
-    elements.append(Paragraph("IV. ĐỐI SÁNH KẾT QUẢ THẨM ĐỊNH TÍN DỤNG GIỮA 2 MÔ HÌNH", sec_hdr))
-    elements.append(Spacer(1, 3))
-    
-    eval_matrix = [
-        [Paragraph("Tiêu chí Đánh giá", c_hdr), 
-         Paragraph("🌲 CÂY QUYẾT ĐỊNH (DECISION TREE)", c_hdr), 
-         Paragraph("📈 HỒI QUY LOGISTIC (LOGISTIC REGRESSION)", c_hdr)],
-        [Paragraph("Điểm tín dụng FICO", c_bold), 
-         Paragraph(f"<b>{dt_res.get('fico', 0)}</b> điểm", c_bold), 
-         Paragraph(f"<b>{lr_res.get('fico', 0)}</b> điểm (Delta: {dt_res.get('fico',0)-lr_res.get('fico',0):+d})", c_bold)],
-        [Paragraph("Phân tầng Hạng Rủi ro", c_bold), 
-         Paragraph(str(dt_res.get('grade', 'N/A')), c_txt), 
-         Paragraph(str(lr_res.get('grade', 'N/A')), c_txt)],
-        [Paragraph("Xác suất vỡ nợ (PD)", c_bold), 
-         Paragraph(f"<b>{dt_res.get('pd', 0)*100:.2f}%</b> (Wilson: {dt_res.get('wilson', 'N/A')})", c_txt), 
-         Paragraph(f"<b>{lr_res.get('pd', 0)*100:.2f}%</b> (Hàm liên tục mượt)", c_txt)],
-        [Paragraph("Ngưỡng an toàn hòa vốn (PD*)", c_bold), 
-         Paragraph(f"{dt_res.get('pd_star', 0.1414)*100:.2f}%", c_txt), 
-         Paragraph(f"{lr_res.get('pd_star', 0.1414)*100:.2f}%", c_txt)],
-        [Paragraph("Lợi nhuận ròng dự kiến (+/- VND)", c_bold), 
-         Paragraph(f"{dt_res.get('profit_vnd', 0):+,.0f} VND", c_success if dt_res.get('profit_vnd', 0)>=0 else c_alert), 
-         Paragraph(f"{lr_res.get('profit_vnd', 0):+,.0f} VND", c_success if lr_res.get('profit_vnd', 0)>=0 else c_alert)],
-        [Paragraph("QUYẾT ĐỊNH PHÊ DUYỆT", c_bold), 
-         Paragraph(f"<b>{dt_res.get('decision', 'N/A')}</b>", c_success if 'PHÊ DUYỆT' in dt_res.get('decision', '') else (c_alert if 'TỪ CHỐI' in dt_res.get('decision', '') else c_bold)), 
-         Paragraph(f"<b>{lr_res.get('decision', 'N/A')}</b>", c_success if 'PHÊ DUYỆT' in lr_res.get('decision', '') else (c_alert if 'TỪ CHỐI' in lr_res.get('decision', '') else c_bold))],
-        [Paragraph("Cơ chế giải thích / Luật chi tiết", c_bold), 
-         Paragraph(f"<b>Nút lá #{dt_res.get('leaf_id', 'N/A')}</b>: {dt_res.get('rule', 'N/A')}", c_txt), 
-         Paragraph(f"<b>Độ nhạy mượt mà</b>: {lr_res.get('reason', 'N/A')}", c_txt)]
-    ]
-    t_eval = Table(eval_matrix, colWidths=[115, 210, 210])
-    t_eval.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
-        ('BACKGROUND', (0,6), (-1,6), colors.HexColor('#F1F5F9')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-        ('TOPPADDING', (0,0), (-1,-1), 2.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
-    ]))
     elements.append(t_eval)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 6))
 
-    # 6. Kết luận & Chữ ký 3 cấp
-    elements.append(Paragraph("V. KẾT LUẬN THẨM ĐỊNH & PHÊ DUYỆT CỦA CÁC CẤP CÓ THẨM QUYỀN", sec_hdr))
-    elements.append(Spacer(1, 3))
+    # 7. Ý kiến thẩm định & Chữ ký 3 cấp (Black & White)
+    elements.append(Paragraph("V. Ý KIẾN THẨM ĐỊNH & PHÊ DUYỆT CỦA CÁC CẤP CÓ THẨM QUYỀN", sec_hdr))
+    elements.append(Spacer(1, 2))
     
     is_agree = (dt_res.get('dec_code') == lr_res.get('dec_code'))
-    agree_text = "Hai mô hình hoàn toàn đồng thuận về quyết định phê duyệt." if is_agree else f"Hai mô hình có sự chênh lệch (Cây quyết định: {dt_res.get('dec_code')} vs Logistic: {lr_res.get('dec_code')}). Đề xuất Hội đồng thẩm định thủ công."
-    elements.append(Paragraph(f"• <b>Nhận định kiểm toán:</b> {agree_text} Tỷ lệ nghĩa vụ nợ thực tế DSR = {financial_details.get('dsr_pct', 0):.1f}%. Hồ sơ đáp ứng điều kiện vận hành trong kịch bản thị trường {market_mode}.", c_txt))
-    elements.append(Spacer(1, 10))
+    conclusion_line = "Cả hai mô hình đồng thuận về quyết định." if is_agree else f"Có sự khác biệt giữa hai mô hình (Cây Quyết Định: {dt_res.get('dec_code')}; Hồi Quy Logistic: {lr_res.get('dec_code')})."
+    elements.append(Paragraph(f"• Ý kiến tái thẩm định: {conclusion_line} Tỷ lệ nghĩa vụ nợ thực tế DSR = {financial_details.get('dsr_pct', 0):.1f}%. Hồ sơ được trình phê duyệt theo đúng quy định phân cấp thẩm quyền tín dụng hiện hành.", c_txt))
+    elements.append(Spacer(1, 8))
 
     sign_data = [
-        [Paragraph("CHUYÊN VIÊN QHKH (RM)", c_bold), Paragraph("CHUYÊN VIÊN THẨM ĐỊNH (CA)", c_bold), Paragraph("GIÁM ĐỐC QUẢN TRỊ RỦI RO (CRO)", c_bold)],
-        [Paragraph("<i>(Ký và ghi rõ họ tên)</i>", note_txt), Paragraph("<i>(Ký và ghi rõ họ tên)</i>", note_txt), Paragraph("<i>(Ký và phê duyệt điện tử)</i>", note_txt)],
-        [Spacer(1, 24), Spacer(1, 24), Spacer(1, 24)],
-        [Paragraph(customer_info.get('officer_name', 'Chuyên viên Tín dụng'), c_txt), Paragraph("Bộ phận Tái thẩm định", c_txt), Paragraph("Ủy ban Quản lý Rủi ro ALCO", c_bold)]
+        [Paragraph("CHUYÊN VIÊN QHKH (RM)", c_bold), Paragraph("CHUYÊN VIÊN TÁI THẨM ĐỊNH (CA)", c_bold), Paragraph("GIÁM ĐỐC QUẢN TRỊ RỦI RO (CRO)", c_bold)],
+        [Paragraph("<i>(Ký và ghi rõ họ tên)</i>", note_txt), Paragraph("<i>(Ký và ghi rõ họ tên)</i>", note_txt), Paragraph("<i>(Ký và phê duyệt)</i>", note_txt)],
+        [Spacer(1, 22), Spacer(1, 22), Spacer(1, 22)],
+        [Paragraph(customer_info.get('officer_name', '................................'), c_txt), Paragraph("........................................", c_txt), Paragraph("........................................", c_bold)]
     ]
     t_sign = Table(sign_data, colWidths=[175, 180, 180])
     t_sign.setStyle(TableStyle([
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('TOPPADDING', (0,0), (-1,-1), 1.5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 1.5),
+        ('TOPPADDING', (0,0), (-1,-1), 1),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 1),
     ]))
     elements.append(t_sign)
 
@@ -729,10 +837,7 @@ def generate_credit_appraisal_pdf(customer_info, financial_details, features_dic
     return buffer.getvalue()
 
 # ==============================================================================
-# THANH BÊN (SIDEBAR) & CẤU HÌNH BỘ CHỌN MÔ HÌNH (MODEL SELECTOR)
-# ==============================================================================
-# ==============================================================================
-# GIAO DIỆN ĐĂNG NHẬP TRUNG TÂM (AUTHENTICATION SCREEN - 1-CHẠM TIỆN LỢI)
+# GIAO DIỆN ĐĂNG NHẬP TRUNG TÂM (1-CHẠM TIỆN LỢI CHO DEMO)
 # ==============================================================================
 if st.session_state.user is None:
     st.markdown("""
@@ -779,6 +884,12 @@ if st.session_state.user is None:
         st.info("💡 Hệ thống hỗ trợ phân quyền tự động theo chuẩn mực Quản trị Rủi ro Tín dụng Basel II.")
     st.stop()
 
+# ==============================================================================
+# THANH BÊN (SIDEBAR) & CẤU HÌNH BỘ CHỌN MÔ HÌNH (MODEL SELECTOR)
+# ==============================================================================
+user = st.session_state.user
+if user is None:
+    st.stop()
 
 with st.sidebar:
     st.markdown("""
@@ -789,7 +900,6 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.markdown("---")
     
-    user = st.session_state.user
     st.markdown(f"**👤 Nhân sự:** `{user['name']}`")
     st.caption(f"**Chức danh:** {user['role_title']}")
     if st.button("🚪 Đăng xuất", use_container_width=True):
@@ -815,7 +925,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚙️ THIẾT LẬP KINH TẾ & THỊ TRƯỜNG")
     
-    # Chọn sản phẩm
     product_options = ['MORTGAGE', 'AUTO', 'UNSECURED', 'CREDIT_CARD']
     product_code = st.selectbox(
         "Dòng Sản phẩm Tín dụng:",
@@ -823,7 +932,6 @@ with st.sidebar:
         format_func=lambda x: dt_cfg[x]['product_name']
     )
     
-    # Chọn chế độ thị trường
     market_mode = st.selectbox(
         "Kịch bản Vĩ mô Thị trường:",
         options=['NORMAL', 'EXPANSION', 'RECESSION'],
@@ -834,7 +942,6 @@ with st.sidebar:
         }[x]
     )
     
-    # Số tiền đề nghị vay
     loan_amount = st.number_input(
         "Số tiền Khách hàng Đề nghị Cấp (VND):",
         min_value=5_000_000,
@@ -870,7 +977,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Khởi tạo các Tabs theo quyền hạn
 tab_labels = ["📝 Thẩm định Tức thì (Single STP)"]
 if 'batch' in user['allowed_tabs']:
     tab_labels.append("📁 Chấm điểm Danh mục Lô (Batch Excel)")
@@ -885,9 +991,26 @@ active_tabs = st.tabs(tab_labels)
 # TAB 1: THẨM ĐỊNH TỨC THÌ (SINGLE CUSTOMER SCORING & DUAL VIEW)
 # ==============================================================================
 with active_tabs[0]:
+    # Khởi tạo session state cho danh sách thẻ và khoản vay linh hoạt
+    if 'card_rows' not in st.session_state:
+        st.session_state.card_rows = [
+            {'bank': 'Vietcombank (VCB)', 'name': 'Thẻ Visa Platinum', 'limit': 60_000_000, 'balance': 9_000_000},
+            {'bank': 'Techcombank (TCB)', 'name': 'Thẻ JCB Gold', 'limit': 40_000_000, 'balance': 0}
+        ]
+    if 'loan_rows' not in st.session_state:
+        st.session_state.loan_rows = [
+            {
+                'loan_type': 'Vay mua xe ô tô',
+                'bank': 'VIB',
+                'disburse': datetime.date(2023, 6, 15),
+                'mature': datetime.date(2027, 6, 15),
+                'balance': 150_000_000
+            }
+        ]
+
     st.markdown("### 📋 Thẩm Định Hồ Sơ Khách Hàng & Năng Lực Tài Chính Chi Tiết")
     
-    # 1. Preset nạp nhanh hồ sơ mẫu
+    # Preset nạp nhanh hồ sơ mẫu
     st.caption("⚡ **NẠP NHANH HỒ SƠ MẪU ĐỂ KIỂM THỬ KHẢ NĂNG PHÂN TÁCH:**")
     sc_c1, sc_c2, sc_c3 = st.columns(3)
     if 'cust_preset' not in st.session_state:
@@ -896,51 +1019,68 @@ with active_tabs[0]:
     with sc_c1:
         if st.button("🟢 Mẫu Khách Hàng Tốt (Hạng 1 - Duyệt Tự Động)", use_container_width=True):
             st.session_state.cust_preset = 'good'
+            st.session_state.card_rows = [
+                {'bank': 'Vietcombank (VCB)', 'name': 'Thẻ Visa Signature', 'limit': 80_000_000, 'balance': 8_000_000},
+                {'bank': 'Techcombank (TCB)', 'name': 'Thẻ JCB Platinum', 'limit': 50_000_000, 'balance': 0}
+            ]
+            st.session_state.loan_rows = [
+                {'loan_type': 'Vay mua xe ô tô', 'bank': 'VIB', 'disburse': datetime.date(2023, 1, 15), 'mature': datetime.date(2028, 1, 15), 'balance': 150_000_000}
+            ]
             st.rerun()
     with sc_c2:
         if st.button("🟡 Mẫu Khách Hàng Tiệm Cận (Hạng 3 - Xem Xét Có Điều Kiện)", use_container_width=True):
             st.session_state.cust_preset = 'medium'
+            st.session_state.card_rows = [
+                {'bank': 'VPBank (VPB)', 'name': 'Thẻ StepUp Visa', 'limit': 40_000_000, 'balance': 26_000_000},
+                {'bank': 'Sacombank (STB)', 'name': 'Thẻ Visa Classic', 'limit': 20_000_000, 'balance': 14_000_000}
+            ]
+            st.session_state.loan_rows = [
+                {'loan_type': 'Vay kinh doanh cá thể', 'bank': 'HDBank (HDB)', 'disburse': datetime.date(2022, 6, 10), 'mature': datetime.date(2027, 6, 10), 'balance': 200_000_000}
+            ]
             st.rerun()
     with sc_c3:
         if st.button("🔴 Mẫu Khách Hàng Nợ Xấu (Hạng 5 - Từ Chối)", use_container_width=True):
             st.session_state.cust_preset = 'bad'
+            st.session_state.card_rows = [
+                {'bank': 'VPBank (VPB)', 'name': 'Thẻ Tín dụng Plus', 'limit': 30_000_000, 'balance': 29_000_000},
+                {'bank': 'Shinhan Bank Vietnam', 'name': 'Thẻ Visa Cash Back', 'limit': 15_000_000, 'balance': 14_800_000}
+            ]
+            st.session_state.loan_rows = [
+                {'loan_type': 'Vay tiêu dùng tín chấp', 'bank': 'MBBank (MB)', 'disburse': datetime.date(2024, 1, 10), 'mature': datetime.date(2025, 1, 10), 'balance': 50_000_000}
+            ]
             st.rerun()
             
-    # Mặc định theo Preset
+    # Giá trị mặc định theo preset
     if st.session_state.cust_preset == 'good':
         p_name = "Nguyễn Văn An"
         p_age, p_dep = 38, 1
         p_salary, p_rental, p_biz, p_other = 35_000_000, 15_000_000, 0, 0
         p_late90, p_late60, p_late30 = 0, 0, 0
-        p_card1_lim, p_card1_bal = 60_000_000, 9_000_000
-        p_card2_lim, p_card2_bal = 40_000_000, 0
-        p_loan1_bal, p_loan1_months = 150_000_000, 30
         p_re_loans = 1
     elif st.session_state.cust_preset == 'medium':
         p_name = "Trần Đình Khang"
         p_age, p_dep = 42, 2
-        p_salary, p_rental, p_biz, p_other = 22_000_000, 0, 5_000_000, 0
+        p_salary, p_rental, p_biz, p_other = 22_000_000, 0, 6_000_000, 0
         p_late90, p_late60, p_late30 = 0, 0, 1
-        p_card1_lim, p_card1_bal = 40_000_000, 26_000_000
-        p_card2_lim, p_card2_bal = 20_000_000, 12_000_000
-        p_loan1_bal, p_loan1_months = 180_000_000, 18
         p_re_loans = 1
     else: # bad
         p_name = "Lê Tuấn Kiệt"
         p_age, p_dep = 28, 0
         p_salary, p_rental, p_biz, p_other = 10_000_000, 0, 0, 0
         p_late90, p_late60, p_late30 = 2, 1, 2
-        p_card1_lim, p_card1_bal = 30_000_000, 28_500_000
-        p_card2_lim, p_card2_bal = 10_000_000, 9_800_000
-        p_loan1_bal, p_loan1_months = 60_000_000, 6
         p_re_loans = 0
 
     st.markdown("---")
     
-    # 2. KHU VỰC NHẬP LIỆU THÔNG TIN KHÁCH HÀNG
+    # ------------------ PHẦN 1: THÔNG TIN ĐỊNH DANH & NHÂN THÂN ------------------
     row1_c1, row1_c2 = st.columns(2)
     with row1_c1:
-        st.markdown("##### 👤 1. Thông Tin Định Danh Khách Hàng")
+        st.markdown("""
+        <div class="hdb-section-header">
+            <span class="hdb-badge">01</span>
+            <span class="hdb-title">THÔNG TIN ĐỊNH DANH & NHÂN THÂN KHÁCH HÀNG</span>
+        </div>
+        """, unsafe_allow_html=True)
         cust_name_in = st.text_input("Họ và tên / Mã CCCD Khách hàng:", value=p_name, key=f"name_{st.session_state.cust_preset}")
         col_age1, col_age2 = st.columns(2)
         with col_age1:
@@ -949,7 +1089,12 @@ with active_tabs[0]:
             cust_dependents = st.number_input("Số người phụ thuộc tài chính:", min_value=0, max_value=10, value=p_dep, step=1, key=f"dep_{st.session_state.cust_preset}")
             
     with row1_c2:
-        st.markdown("##### ⚠️ 2. Lịch Sử Nợ Quá Hạn (2 năm gần nhất)")
+        st.markdown("""
+        <div class="hdb-section-header">
+            <span class="hdb-badge">02</span>
+            <span class="hdb-title">LỊCH SỬ NỢ QUÁ HẠN (2 NĂM GẦN NHẤT)</span>
+        </div>
+        """, unsafe_allow_html=True)
         col_l1, col_l2, col_l3 = st.columns(3)
         with col_l1:
             late_90 = st.number_input("Quá hạn >= 90 ngày:", min_value=0, max_value=20, value=p_late90, step=1, key=f"l90_{st.session_state.cust_preset}", help="Chỉ số quan trọng số 1: Quá hạn >= 90 ngày kéo FICO tụt dốc")
@@ -960,8 +1105,13 @@ with active_tabs[0]:
 
     st.markdown("---")
     
-    # 3. PHÂN RÃ THU NHẬP ĐA NGUỒN DÀNH CHO CHUYÊN VIÊN TÍN DỤNG (RM/CA)
-    st.markdown("##### 💰 3. Bảng Phân Rã Thu Nhập Đa Nguồn Hàng Tháng (Dành cho Chuyên viên Tín dụng)")
+    # ------------------ PHẦN 3: PHÂN RÃ THU NHẬP ĐA NGUỒN ------------------
+    st.markdown("""
+    <div class="hdb-section-header">
+        <span class="hdb-badge">03</span>
+        <span class="hdb-title">BẢNG PHÂN RÃ THU NHẬP ĐA NGUỒN HÀNG THÁNG (CHUYÊN VIÊN TÍN DỤNG)</span>
+    </div>
+    """, unsafe_allow_html=True)
     inc_c1, inc_c2, inc_c3, inc_c4 = st.columns(4)
     with inc_c1:
         income_salary = st.number_input("1. Lương & HĐLĐ (VND/tháng):", min_value=0, max_value=500_000_000, value=p_salary, step=1_000_000, format="%d", key=f"sal_{st.session_state.cust_preset}")
@@ -973,81 +1123,173 @@ with active_tabs[0]:
         income_other = st.number_input("4. Thu nhập khác hợp pháp:", min_value=0, max_value=500_000_000, value=p_other, step=1_000_000, format="%d", key=f"oth_{st.session_state.cust_preset}")
         
     total_income_vnd = income_salary + income_rental + income_biz + income_other
-    # Quy đổi về đơn vị Model (USD / Chuẩn Give Me Some Credit 1 USD ~ 25.000 VND)
     cust_income_model = total_income_vnd / 25_000.0 if total_income_vnd > 0 else 0.0
     
     st.info(f"📊 **Tổng Thu Nhập Thực Nhận:** **`{total_income_vnd:,.0f} VND/tháng`** (Quy đổi đơn vị chuẩn mô hình: **`{cust_income_model:,.1f} USD`**)")
 
     st.markdown("---")
 
-    # 4. DANH MỤC THẺ TÍN DỤNG & CÔNG THỨC TÍNH REVOLVING UTILIZATION
-    st.markdown("##### 💳 4. Danh Mục Thẻ Tín Dụng & Tỷ Lệ Sử Dụng Hạn Mức (Revolving Utilization)")
-    st.caption("Công thức chuẩn tài chính: **`Revolving Utilization = Tổng Dư Nợ Đã Dùng / Tổng Hạn Mức Thẻ Được Cấp`**")
+    # ------------------ PHẦN 4: DANH MỤC THẺ TÍN DỤNG (ĐỘNG + TÌM KIẾM NGÂN HÀNG) ------------------
+    st.markdown("""
+    <div class="hdb-section-header">
+        <span class="hdb-badge">04</span>
+        <span class="hdb-title">DANH MỤC THẺ TÍN DỤNG & TỶ LỆ DÙNG HẠN MỨC (REVOLVING UTILIZATION)</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption("Công thức tài chính: **`Revolving Utilization = Tổng Dư Nợ Đã Dùng / Tổng Hạn Mức Thẻ Được Cấp`**")
     
-    with st.expander("📝 Chi tiết Hạn mức và Mức sử dụng từng Thẻ Tín dụng (Bấm để xem/chỉnh sửa)", expanded=True):
-        tc_col1, tc_col2, tc_col3 = st.columns([1.5, 1.2, 1.2])
-        with tc_col1:
-            st.markdown("**Tên Thẻ / Ngân Hàng**")
-            st.text("Thẻ Tín dụng #1 (Thẻ chính)")
-            st.text("Thẻ Tín dụng #2 (Thẻ phụ/Ngân hàng khác)")
-        with tc_col2:
-            st.markdown("**Hạn Mức Thẻ (VND)**")
-            card1_lim = st.number_input("Hạn mức Thẻ 1:", min_value=0, max_value=500_000_000, value=p_card1_lim, step=5_000_000, format="%d", label_visibility="collapsed", key=f"c1_lim_{st.session_state.cust_preset}")
-            card2_lim = st.number_input("Hạn mức Thẻ 2:", min_value=0, max_value=500_000_000, value=p_card2_lim, step=5_000_000, format="%d", label_visibility="collapsed", key=f"c2_lim_{st.session_state.cust_preset}")
-        with tc_col3:
-            st.markdown("**Dư Nợ Đang Dùng (VND)**")
-            card1_bal = st.number_input("Dư nợ Thẻ 1:", min_value=0, max_value=500_000_000, value=p_card1_bal, step=1_000_000, format="%d", label_visibility="collapsed", key=f"c1_bal_{st.session_state.cust_preset}")
-            card2_bal = st.number_input("Dư nợ Thẻ 2:", min_value=0, max_value=500_000_000, value=p_card2_bal, step=1_000_000, format="%d", label_visibility="collapsed", key=f"c2_bal_{st.session_state.cust_preset}")
+    with st.expander("💳 Quản lý Danh mục Thẻ Tín dụng (Bấm để xem/thêm/bớt thẻ)", expanded=True):
+        # Hiển thị từng dòng thẻ
+        updated_cards = []
+        for i, card in enumerate(st.session_state.card_rows):
+            c_row1, c_row2, c_row3, c_row4 = st.columns([1.5, 1.2, 1.2, 1.2])
+            with c_row1:
+                # Tìm vị trí index của ngân hàng
+                current_bank = card.get('bank', VN_BANKS[0])
+                b_idx = VN_BANKS.index(current_bank) if current_bank in VN_BANKS else 0
+                bank_sel = st.selectbox(f"Ngân hàng phát hành (Thẻ #{i+1}):", options=VN_BANKS, index=b_idx, key=f"c_bank_{i}_{st.session_state.cust_preset}")
+            with c_row2:
+                name_val = st.text_input(f"Tên loại thẻ (#{i+1}):", value=card.get('name', f"Thẻ TD #{i+1}"), key=f"c_name_{i}_{st.session_state.cust_preset}")
+            with c_row3:
+                limit_val = st.number_input(f"Hạn mức (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=card.get('limit', 50_000_000), step=5_000_000, format="%d", key=f"c_lim_{i}_{st.session_state.cust_preset}")
+            with c_row4:
+                bal_val = st.number_input(f"Dư nợ đã dùng (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=card.get('balance', 0), step=1_000_000, format="%d", key=f"c_bal_{i}_{st.session_state.cust_preset}", help="Cho phép điền 0 nếu chưa dùng")
+                
+            updated_cards.append({'bank': bank_sel, 'name': name_val, 'limit': limit_val, 'balance': bal_val})
             
-    total_card_limit = card1_lim + card2_lim
-    total_card_balance = card1_bal + card2_bal
+        st.session_state.card_rows = updated_cards
+        
+        # Nút thêm / bớt thẻ
+        col_c_btn1, col_c_btn2 = st.columns([1, 1])
+        with col_c_btn1:
+            if st.button("➕ Thêm Thẻ Tín Dụng Mới", use_container_width=True):
+                st.session_state.card_rows.append({'bank': 'Vietcombank (VCB)', 'name': f'Thẻ TD mới #{len(st.session_state.card_rows)+1}', 'limit': 30_000_000, 'balance': 0})
+                st.rerun()
+        with col_c_btn2:
+            if len(st.session_state.card_rows) > 0:
+                if st.button("➖ Xóa Thẻ Tín Dụng Cuối Cùng", use_container_width=True):
+                    st.session_state.card_rows.pop()
+                    st.rerun()
+
+    # Tính toán tổng hợp cho Thẻ tín dụng
+    total_card_limit = sum(c['limit'] for c in st.session_state.card_rows)
+    total_card_balance = sum(c['balance'] for c in st.session_state.card_rows)
     calc_utilization = (total_card_balance / total_card_limit) if total_card_limit > 0 else 0.0
     calc_utilization = float(np.clip(calc_utilization, 0.0, 2.5))
-    active_cards_count = (1 if card1_lim > 0 else 0) + (1 if card2_lim > 0 else 0)
+    active_cards_count = sum(1 for c in st.session_state.card_rows if c['limit'] > 0)
     
     util_badge_color = "#10B981" if calc_utilization <= 0.35 else ("#F59E0B" if calc_utilization <= 0.70 else "#EF4444")
     st.markdown(f"""
-    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px 16px; border-radius: 8px;">
-        Tổng Hạn Mức Thẻ: <b>{total_card_limit:,.0f} VND</b> | Tổng Dư Nợ Thẻ Đang Dùng: <b>{total_card_balance:,.0f} VND</b> | 
+    <div class="summary-strip">
+        💳 Tổng Số Thẻ: <b>{len(st.session_state.card_rows)} thẻ</b> | 
+        Tổng Hạn Mức Được Cấp: <b>{total_card_limit:,.0f} VND</b> | 
+        Tổng Dư Nợ Đã Dùng: <b>{total_card_balance:,.0f} VND</b> | 
         Tỷ Lệ Sử Dụng Thẻ Tự Động (Revolving): <b style="color: {util_badge_color}; font-size: 16px;">{calc_utilization*100:.2f}%</b>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # 5. DANH MỤC KHOẢN NỢ VAY, NGÀY ĐÁO HẠN & TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO)
-    st.markdown("##### 🏦 5. Danh Mục Khoản Nợ Vay & Tỷ Số Nợ Trên Thu Nhập (Debt Ratio)")
+    # ------------------ PHẦN 5: DANH MỤC KHOẢN NỢ VAY (TÁCH CỘT + ĐỘNG + LỊCH MỞ RỘNG) ------------------
+    st.markdown("""
+    <div class="hdb-section-header">
+        <span class="hdb-badge">05</span>
+        <span class="hdb-title">DANH MỤC KHOẢN NỢ VAY & TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO)</span>
+    </div>
+    """, unsafe_allow_html=True)
     st.caption("Công thức tài chính: **`Nghĩa vụ hàng tháng = Dư nợ / Số tháng còn lại (Ngày đến hạn - Hôm nay)`** | **`DebtRatio = Tổng nghĩa vụ nợ tháng / Tổng thu nhập tháng`**")
     
     today_dt = datetime.date.today()
-    default_disburse = today_dt - datetime.timedelta(days=180)
-    default_mature = today_dt + datetime.timedelta(days=int(p_loan1_months * 30.4375))
     
-    with st.expander("📝 Chi tiết Khoản nợ vay hiện hữu tại các TCTD (Bấm để xem/chỉnh sửa)", expanded=True):
-        ln_col1, ln_col2, ln_col3, ln_col4, ln_col5 = st.columns([1.5, 1.1, 1.1, 1.2, 1.2])
-        with ln_col1:
-            st.markdown("**Khoản Vay / TCTD**")
-            loan1_name = st.text_input("Tên khoản vay:", value="Vay mua xe / Tiêu dùng BIDV", key=f"ln1_name_{st.session_state.cust_preset}")
-        with ln_col2:
-            st.markdown("**Ngày Giải Ngân**")
-            loan1_disburse = st.date_input("Ngày giải ngân:", value=default_disburse, key=f"ln1_dis_{st.session_state.cust_preset}")
-        with ln_col3:
-            st.markdown("**Ngày Đáo Hạn**")
-            loan1_mature = st.date_input("Ngày đến hạn:", value=default_mature, key=f"ln1_mat_{st.session_state.cust_preset}")
-        with ln_col4:
-            st.markdown("**Dư Nợ Còn Lại (VND)**")
-            loan1_bal = st.number_input("Dư nợ gốc còn lại:", min_value=0, max_value=2_000_000_000, value=p_loan1_bal, step=10_000_000, format="%d", key=f"ln1_bal_{st.session_state.cust_preset}")
-        with ln_col5:
-            st.markdown("**Hôm Nay & Số Tháng Còn**")
-            days_left = (loan1_mature - today_dt).days
+    with st.expander("🏦 Quản lý Danh mục Khoản Nợ Vay (Bấm để xem/thêm/bớt khoản vay)", expanded=True):
+        updated_loans = []
+        loan_repayment_details = []
+        
+        for j, loan in enumerate(st.session_state.loan_rows):
+            st.markdown(f"**📌 Khoản Nợ Vay #{j+1}:**")
+            col_l1, col_l2, col_l3, col_l4, col_l5 = st.columns([1.5, 1.5, 1.2, 1.2, 1.4])
+            
+            with col_l1:
+                # Cột Khoản vay: Chuyên viên tự nhập
+                l_type_val = st.text_input(f"Tên Khoản vay (#{j+1}):", value=loan.get('loan_type', f"Khoản vay #{j+1}"), key=f"l_type_{j}_{st.session_state.cust_preset}")
+            with col_l2:
+                # Cột TCTD: Danh sách ngân hàng cho phép tìm kiếm
+                cur_lbank = loan.get('bank', 'VIB')
+                lb_idx = VN_BANKS.index(cur_lbank) if cur_lbank in VN_BANKS else 0
+                l_bank_val = st.selectbox(f"Tổ chức tín dụng (TCTD #{j+1}):", options=VN_BANKS, index=lb_idx, key=f"l_bank_{j}_{st.session_state.cust_preset}")
+            with col_l3:
+                # Cột Ngày giải ngân: Mở rộng lịch từ năm 2000 đến 2060, gõ trực tiếp được
+                dis_val = st.date_input(
+                    f"Ngày giải ngân (#{j+1}):",
+                    value=loan.get('disburse', today_dt - datetime.timedelta(days=365)),
+                    min_value=datetime.date(1990, 1, 1),
+                    max_value=datetime.date(2070, 12, 31),
+                    key=f"l_dis_{j}_{st.session_state.cust_preset}",
+                    help="Chọn từ lịch hoặc gõ trực tiếp năm trên bàn phím"
+                )
+            with col_l4:
+                # Cột Ngày đến hạn: Tương tự
+                mat_val = st.date_input(
+                    f"Ngày đến hạn (#{j+1}):",
+                    value=loan.get('mature', today_dt + datetime.timedelta(days=365*2)),
+                    min_value=datetime.date(1990, 1, 1),
+                    max_value=datetime.date(2070, 12, 31),
+                    key=f"l_mat_{j}_{st.session_state.cust_preset}",
+                    help="Chọn từ lịch hoặc gõ trực tiếp năm trên bàn phím"
+                )
+            with col_l5:
+                # Cột Dư nợ còn lại
+                bal_val = st.number_input(
+                    f"Dư nợ gốc còn lại (#{j+1}):",
+                    min_value=0, max_value=10_000_000_000,
+                    value=loan.get('balance', 100_000_000),
+                    step=10_000_000,
+                    format="%d",
+                    key=f"l_bal_{j}_{st.session_state.cust_preset}"
+                )
+                
+            # Tính số tháng còn lại và nghĩa vụ trả nợ tháng của khoản này
+            days_left = (mat_val - today_dt).days
             months_left = max(1, round(days_left / 30.4375)) if days_left > 0 else 1
-            st.text(f"Hôm nay: {today_dt.strftime('%d/%m/%Y')}")
-            st.markdown(f"Số tháng còn lại: **`{months_left} tháng`**")
+            monthly_pay = (bal_val / months_left) if (bal_val > 0 and months_left > 0) else 0.0
+            
+            st.caption(f"📅 Ngày hôm nay: **`{today_dt.strftime('%d/%m/%Y')}`** | Số tháng còn lại: **`{months_left} tháng`** | Nghĩa vụ trả nợ gốc/tháng: **`{monthly_pay:,.0f} VND/tháng`**")
+            st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px dashed #CBD5E1;'>", unsafe_allow_html=True)
+            
+            updated_loans.append({
+                'loan_type': l_type_val,
+                'bank': l_bank_val,
+                'disburse': dis_val,
+                'mature': mat_val,
+                'balance': bal_val,
+                'months_left': months_left,
+                'monthly_pay': monthly_pay
+            })
+            
+        st.session_state.loan_rows = updated_loans
+        
+        # Nút thêm / bớt khoản vay
+        col_l_btn1, col_l_btn2 = st.columns([1, 1])
+        with col_l_btn1:
+            if st.button("➕ Thêm Khoản Nợ Vay Mới", use_container_width=True):
+                st.session_state.loan_rows.append({
+                    'loan_type': f'Khoản vay mới #{len(st.session_state.loan_rows)+1}',
+                    'bank': 'VietinBank (CTG)',
+                    'disburse': today_dt,
+                    'mature': today_dt + datetime.timedelta(days=365*3),
+                    'balance': 50_000_000
+                })
+                st.rerun()
+        with col_l_btn2:
+            if len(st.session_state.loan_rows) > 0:
+                if st.button("➖ Xóa Khoản Vay Cuối Cùng", use_container_width=True):
+                    st.session_state.loan_rows.pop()
+                    st.rerun()
 
-    # Tính nghĩa vụ trả nợ hàng tháng
-    monthly_loan1_pay = (loan1_bal / months_left) if (loan1_bal > 0 and months_left > 0) else 0.0
-    total_monthly_debt = monthly_loan1_pay
-    active_loans_count = 1 if loan1_bal > 0 else 0
+    # Tổng nghĩa vụ nợ hàng tháng
+    total_loan_balance = sum(l['balance'] for l in st.session_state.loan_rows)
+    total_monthly_debt = sum(l['monthly_pay'] for l in st.session_state.loan_rows)
+    active_loans_count = sum(1 for l in st.session_state.loan_rows if l['balance'] > 0)
     
     # Tính DebtRatio = Tổng nghĩa vụ nợ hàng tháng / Tổng thu nhập hàng tháng
     calc_debt_ratio = (total_monthly_debt / total_income_vnd) if total_income_vnd > 0 else 1.0
@@ -1055,16 +1297,23 @@ with active_tabs[0]:
     
     debt_badge_color = "#10B981" if calc_debt_ratio <= 0.40 else ("#F59E0B" if calc_debt_ratio <= 0.60 else "#EF4444")
     st.markdown(f"""
-    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 10px 16px; border-radius: 8px;">
-        Nghĩa Vụ Trả Nợ Khoản Vay Hàng Tháng: <b>{total_monthly_debt:,.0f} VND/tháng</b> | 
+    <div class="summary-strip">
+        🏦 Tổng Dư Nợ Khoản Vay Còn Lại: <b>{total_loan_balance:,.0f} VND</b> | 
+        Tổng Nghĩa Vụ Trả Nợ Vay Hàng Tháng (SUM): <b style="color: #1E3A8A; font-size: 16px;">{total_monthly_debt:,.0f} VND/tháng</b> | 
         Tỷ Số Nợ Trên Thu Nhập Tự Động (DebtRatio): <b style="color: {debt_badge_color}; font-size: 16px;">{calc_debt_ratio*100:.2f}%</b> ({calc_debt_ratio:.4f})
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # 6. SỐ KHOẢN VAY VÀ THẺ TÍN DỤNG ĐANG MỞ (TỰ ĐỘNG ĐIỀN)
-    st.markdown("##### 📑 6. Số Tài Khoản Tín Dụng & Bất Động Sản Đang Mở (Tự Động Tính)")
+    # ------------------ PHẦN 6: SỐ TÀI KHOẢN TÍN DỤNG & BẤT ĐỘNG SẢN ĐANG MỞ (CIC) ------------------
+    st.markdown("""
+    <div class="hdb-section-header">
+        <span class="hdb-badge">06</span>
+        <span class="hdb-title">TỔNG HỢP TÀI KHOẢN TÍN DỤNG & BẤT ĐỘNG SẢN ĐANG MỞ (CIC)</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
     auto_open_accounts = active_cards_count + active_loans_count
     
     col_acc1, col_acc2 = st.columns(2)
@@ -1075,16 +1324,19 @@ with active_tabs[0]:
             value=max(auto_open_accounts, 2),
             step=1,
             key=f"open_acc_{st.session_state.cust_preset}",
-            help=f"Tự động tính = {active_cards_count} thẻ tín dụng + {active_loans_count} khoản vay. Bạn có thể cộng thêm hạn mức thấu chi khác nếu có."
+            help=f"Tự động tính = {active_cards_count} thẻ tín dụng + {active_loans_count} khoản vay. Cán bộ có thể cộng thêm hạn mức thấu chi nếu có."
         )
+        st.caption(f"✓ **Tự động liên kết:** Đã cộng {active_cards_count} thẻ tín dụng và {active_loans_count} khoản nợ vay đang mở.")
     with col_acc2:
         re_loans_input = st.number_input(
             "Số khoản vay bất động sản / thế chấp (NumberRealEstateLoansOrLines):",
             min_value=0, max_value=20,
             value=p_re_loans,
             step=1,
-            key=f"re_loans_{st.session_state.cust_preset}"
+            key=f"re_loans_{st.session_state.cust_preset}",
+            help="📌 Cán bộ tín dụng tự điền số lượng khoản vay BĐS/thế chấp dựa vào thông tin tra cứu trên bản sao kê CIC."
         )
+        st.caption("📌 **Ghi chú nghiệp vụ:** Cán bộ tín dụng tự điền số lượng khoản vay BĐS/thế chấp dựa vào thông tin tra cứu trên bản sao kê CIC.")
 
     # Đóng gói dữ liệu 11 đặc trưng hoàn chỉnh
     customer_features_payload = {
@@ -1112,11 +1364,11 @@ with active_tabs[0]:
         'income_business': income_biz,
         'income_other': income_other,
         'total_income_vnd': total_income_vnd,
-        'card_count': active_cards_count,
+        'card_count': len(st.session_state.card_rows),
         'total_card_limit': total_card_limit,
         'total_card_balance': total_card_balance,
-        'loan_count': active_loans_count,
-        'total_loan_balance': loan1_bal,
+        'loan_count': len(st.session_state.loan_rows),
+        'total_loan_balance': total_loan_balance,
         'monthly_debt_repayment': total_monthly_debt,
         'monthly_new_installment': est_new_installment,
         'total_debt_monthly': total_debt_with_new,
@@ -1154,7 +1406,6 @@ with active_tabs[0]:
             </div>
             """, unsafe_allow_html=True)
             
-            # Banner quyết định DT
             if res_dt['dec_code'] == 'APPROVED':
                 st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px;">✅ {res_dt["decision"]}<div style="font-size: 13px; font-weight: normal; margin-top: 4px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
             elif res_dt['dec_code'] == 'CONDITIONAL':
@@ -1162,7 +1413,6 @@ with active_tabs[0]:
             else:
                 st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px;">🚫 {res_dt["decision"]}<div style="font-size: 13px; font-weight: normal; margin-top: 4px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
 
-            # Đồng hồ FICO Gauge Plotly cho Decision Tree
             fig_gauge_dt = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=res_dt['fico'],
@@ -1183,7 +1433,6 @@ with active_tabs[0]:
             fig_gauge_dt.update_layout(height=230, margin=dict(l=15, r=15, t=30, b=10))
             st.plotly_chart(fig_gauge_dt, use_container_width=True)
             
-            # Thẻ số liệu chi tiết DT
             c_dt1, c_dt2 = st.columns(2)
             with c_dt1:
                 st.markdown(f'<div class="metric-card"><div class="metric-label">Xác suất PD (Tree)</div><div class="metric-value">{res_dt["pd"]*100:.2f}%</div><div style="font-size: 11px; color: #64748B;">Wilson: {res_dt["wilson"]}</div></div>', unsafe_allow_html=True)
@@ -1191,7 +1440,6 @@ with active_tabs[0]:
                 profit_col_dt = "#10B981" if res_dt['profit_vnd'] >= 0 else "#EF4444"
                 st.markdown(f'<div class="metric-card"><div class="metric-label">Lợi nhuận kỳ vọng</div><div class="metric-value" style="color: {profit_col_dt}; font-size: 20px;">{res_dt["profit_vnd"]:,.0f} đ</div><div style="font-size: 11px; color: #64748B;">Hạng: {res_dt["grade"]}</div></div>', unsafe_allow_html=True)
                 
-            # Khung giải trình luật Cây Quyết định
             st.info(f"**🌿 Nút lá #{res_dt['leaf_id']} | Quy tắc logic rẽ nhánh IF-THEN:**\n\n`IF {res_dt['rule']} THEN PD = {res_dt['pd']*100:.2f}% -> {res_dt['grade']}`")
 
         # ------------------ CỘT 2: HỒI QUY LOGISTIC (LOGISTIC REGRESSION) ------------------
@@ -1203,7 +1451,6 @@ with active_tabs[0]:
             </div>
             """, unsafe_allow_html=True)
             
-            # Banner quyết định LR
             if res_lr['dec_code'] == 'APPROVED':
                 st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px;">✅ {res_lr["decision"]}<div style="font-size: 13px; font-weight: normal; margin-top: 4px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
             elif res_lr['dec_code'] == 'CONDITIONAL':
@@ -1211,7 +1458,6 @@ with active_tabs[0]:
             else:
                 st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px;">🚫 {res_lr["decision"]}<div style="font-size: 13px; font-weight: normal; margin-top: 4px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
 
-            # Đồng hồ FICO Gauge Plotly cho Logistic
             fig_gauge_lr = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=res_lr['fico'],
@@ -1232,7 +1478,6 @@ with active_tabs[0]:
             fig_gauge_lr.update_layout(height=230, margin=dict(l=15, r=15, t=30, b=10))
             st.plotly_chart(fig_gauge_lr, use_container_width=True)
             
-            # Thẻ số liệu chi tiết LR
             c_lr1, c_lr2 = st.columns(2)
             with c_lr1:
                 st.markdown(f'<div class="metric-card"><div class="metric-label">Xác suất PD (Logistic)</div><div class="metric-value">{res_lr["pd"]*100:.2f}%</div><div style="font-size: 11px; color: #64748B;">Log-odds: {res_lr.get("log_odds", 0):.4f}</div></div>', unsafe_allow_html=True)
@@ -1240,7 +1485,6 @@ with active_tabs[0]:
                 profit_col_lr = "#10B981" if res_lr['profit_vnd'] >= 0 else "#EF4444"
                 st.markdown(f'<div class="metric-card"><div class="metric-label">Lợi nhuận kỳ vọng</div><div class="metric-value" style="color: {profit_col_lr}; font-size: 20px;">{res_lr["profit_vnd"]:,.0f} đ</div><div style="font-size: 11px; color: #64748B;">Hạng: {res_lr["grade"]}</div></div>', unsafe_allow_html=True)
                 
-            # Khung giải trình độ nhạy mượt mà của Logistic
             st.success(f"**⚡ Đặc tính hàm liên tục:** Điểm FICO của Logistic dịch chuyển mượt mà từng USD thu nhập và từng % dư nợ thẻ. Nhân tố chi phối hàng đầu hiện tại: **`{res_lr.get('top_driver', 'Thu nhập & Đòn bẩy')}`**.")
 
         # ------------------ PANEL ĐỐI SÁNH & TRỌNG TÀI RỦI RO ------------------
@@ -1316,7 +1560,7 @@ with active_tabs[0]:
             st.caption(f"Sản phẩm: **{active_res['product_name']}**")
             st.markdown("---")
             p_col = "#10B981" if active_res['profit_vnd'] >= 0 else "#EF4444"
-            st.markdown(f'<div class="metric-label">LỢI NHUẬN RÒNG KỲ VỌNG</div><div class="metric-value" style="font-size: 20px; color: {p_col};">{active_res["profit_vnd"]:,.0f} VND</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-label">LỢI NHUẬN RÒNG KỲ VỌNG</div><div class="metric-value" style="color: {p_col};">{active_res["profit_vnd"]:,.0f} VND</div>', unsafe_allow_html=True)
             st.caption("Sau khi trừ chi phí vốn, vận hành & bù đắp rủi ro mất vốn.")
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -1328,15 +1572,17 @@ with active_tabs[0]:
                 st.markdown(f"**Hàm Logit Liên tục:** $\\ln(PD/(1-PD)) = {active_res.get('log_odds', 0):.4f}$. Điểm số FICO tự động tối ưu thích ứng mượt mà.")
 
     # ==============================================================================
-    # NÚT XUẤT BÁO CÁO THẨM ĐỊNH TÍN DỤNG CHUYÊN NGHIỆP RA FILE PDF
+    # NÚT XUẤT TỜ TRÌNH THẨM ĐỊNH TÍN DỤNG CHUYÊN NGHIỆP TRẮNG - ĐEN (PDF EXPORT)
     # ==============================================================================
     st.markdown("---")
-    st.markdown("#### 📄 XUẤT TỜ TRÌNH & BÁO CÁO THẨM ĐỊNH TÍN DỤNG CHUYÊN NGHIỆP (PDF EXPORT)")
-    st.write("Hệ thống hỗ trợ kết xuất tự động toàn bộ 11 đặc trưng, bảng phân tích thu nhập đa nguồn, cơ cấu nợ và kết quả đối sánh đa mô hình thành một file PDF hoàn chỉnh theo tiêu chuẩn kiểm toán Basel II.")
+    st.markdown("#### 📄 XUẤT TỜ TRÌNH THẨM ĐỊNH TÍN DỤNG CHÍNH QUY (FORMAT TRẮNG - ĐEN)")
+    st.write("Tờ trình được xuất ra theo chuẩn văn bản hành chính Ngân hàng (chỉ dùng định dạng **Trắng & Đen** sang trọng, loại bỏ các diễn giải AI dư thừa, tập trung vào số liệu đo lường cụ thể và chữ ký phê duyệt).")
 
-    pdf_bytes = generate_credit_appraisal_pdf(
+    pdf_bw_bytes = generate_bw_credit_appraisal_pdf(
         customer_info=customer_meta_payload,
         financial_details=financial_breakdown_payload,
+        card_items=st.session_state.card_rows,
+        loan_items=st.session_state.loan_rows,
         features_dict=customer_features_payload,
         dt_res=res_dt,
         lr_res=res_lr,
@@ -1345,20 +1591,20 @@ with active_tabs[0]:
         market_mode=market_mode
     )
 
-    pdf_file_name = f"Bao_Cao_Tham_Dinh_{customer_meta_payload['app_id']}_{cust_name_in.replace(' ', '_')}.pdf"
+    pdf_file_name = f"To_Trinh_Tham_Dinh_{customer_meta_payload['app_id']}_{cust_name_in.replace(' ', '_')}.pdf"
     
     col_pdf1, col_pdf2 = st.columns([1, 2])
     with col_pdf1:
         st.download_button(
-            label="📥 TẢI BÁO CÁO THẨM ĐỊNH TÍN DỤNG (PDF)",
-            data=pdf_bytes,
+            label="📥 TẢI TỜ TRÌNH THẨM ĐỊNH (PDF TRẮNG - ĐEN)",
+            data=pdf_bw_bytes,
             file_name=pdf_file_name,
             mime="application/pdf",
             type="primary",
             use_container_width=True
         )
     with col_pdf2:
-        st.caption(f"✓ Đã sẵn sàng xuất bản: `{pdf_file_name}` | Dung lượng: **{len(pdf_bytes)/1024:.1f} KB** | Định dạng chuẩn A4 in ấn ngân hàng.")
+        st.caption(f"✓ Đã sẵn sàng in ấn A4 chuẩn ngân hàng: `{pdf_file_name}` | Dung lượng: **{len(pdf_bw_bytes)/1024:.1f} KB** | Định dạng Trắng - Đen chuyên nghiệp.")
 
 # ==============================================================================
 # TAB 2: CHẤM ĐIỂM DANH MỤC LÔ HÀNG LOẠT (BATCH PORTFOLIO SCORING)
@@ -1470,15 +1716,12 @@ if 'policy' in user['allowed_tabs']:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.markdown(f"##### 📈 So Sánh Trực Tiếp Đường Cong Lợi Nhuận Kỳ Vọng ({dt_cfg[sel_pol_prod]['product_name']})")
             
-            # Mô phỏng đường cong lợi nhuận trên dải điểm FICO 400 đến 700
             test_ficos = np.linspace(420, 680, 50)
             
-            # Đường cong Logistic: liên tục theo sigmoid
             log_odds_range = (offset - test_ficos) / factor
             pds_lr = 1.0 / (1.0 + np.exp(-log_odds_range))
             profits_lr = (1.0 - pds_lr) * calc_net_m - pds_lr * new_lgd
             
-            # Đường cong Decision Tree: phân đoạn theo 5 hạng rủi ro
             pds_dt = []
             for f in test_ficos:
                 if f >= 605: pds_dt.append(0.011)
@@ -1513,7 +1756,6 @@ if 'policy' in user['allowed_tabs']:
             st.caption("Khảo sát đối sánh: Mô hình Logistic mang lại sự phân tách mịn màng liên tục, trong khi Cây Quyết định tạo các bậc thang phân vị rõ ràng hỗ trợ thiết lập chính sách cứng.")
             st.markdown('</div>', unsafe_allow_html=True)
             
-        # Bảng đối sánh ngưỡng cắt tối ưu thực nghiệm
         st.markdown("##### 🏆 Bảng Đối Sánh Ngưỡng Cắt Tối Ưu Hóa Lợi Nhuận Giữa 2 Mô Hình (Optimal Cut-offs)")
         opt_data = [
             {'Dòng Sản Phẩm': 'Cho vay Mua nhà (Mortgage)', 'Cutoff FICO (Tree)': 550, 'Cutoff FICO (Logistic)': 544, 'Chênh Lệch FICO': '-6 điểm', 'PD Hòa Vốn (PD*)': '12.28%', 'Đánh Giá Khẩu Vị': 'Logistic mở rộng nhẹ tệp khách hàng an toàn'},
@@ -1531,7 +1773,6 @@ if 'audit' in user['allowed_tabs']:
         st.markdown("### 📊 Báo Cáo Kiểm Toán & So Sánh Bộ Chỉ Số Basel II Trụ Cột 2 & IFRS 9")
         st.write("Bảng điều khiển định kỳ phục vụ Ủy ban ALCO và Cơ quan Thanh tra Giám sát Ngân hàng Nhà nước.")
         
-        # 1. Thẻ so sánh chỉ số vàng
         ak1, ak2, ak3, ak4 = st.columns(4)
         ak1.metric("AUC-ROC (Test 30k)", "0.8521 vs 0.8556", "Logistic nhỉnh hơn +0.0035")
         ak2.metric("Hệ Số Gini (2*AUC - 1)", "0.7041 vs 0.7112", "Cả 2 đều > 0.60 Chuẩn Vàng")
