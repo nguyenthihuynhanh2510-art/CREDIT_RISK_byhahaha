@@ -1,0 +1,13 @@
+﻿Sản phẩm,Mã SP,Kịch bản thị trường,Điểm FICO tối thiểu,Hạng được duyệt,Ngưỡng PD*
+Cho vay Mua nhà có TSBĐ,MORTGAGE,NORMAL,544,"Hạng 1 (< 2%), Hạng 2 (2% - 5%), Hạng 3 (5% - 10%)",12.28%
+Cho vay Mua nhà có TSBĐ,MORTGAGE,EXPANSION,540,"Hạng 1 (< 2%), Hạng 2 (2% - 5%), Hạng 3 (5% - 10%)",12.28%
+Cho vay Mua nhà có TSBĐ,MORTGAGE,RECESSION,572,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",12.28%
+Cho vay Mua Ô tô (Auto Loan),AUTO,NORMAL,551,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",10.00%
+Cho vay Mua Ô tô (Auto Loan),AUTO,EXPANSION,548,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",10.00%
+Cho vay Mua Ô tô (Auto Loan),AUTO,RECESSION,600,Hạng 1 (< 2%),10.00%
+Vay Tiêu dùng Tín chấp,UNSECURED,NORMAL,543,"Hạng 1 (< 2%), Hạng 2 (2% - 5%), Hạng 3 (5% - 10%)",12.79%
+Vay Tiêu dùng Tín chấp,UNSECURED,EXPANSION,538,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",12.79%
+Vay Tiêu dùng Tín chấp,UNSECURED,RECESSION,572,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",12.79%
+Thẻ Tín dụng (Credit Card),CREDIT_CARD,NORMAL,540,"Hạng 1 (< 2%), Hạng 2 (2% - 5%), Hạng 3 (5% - 10%)",14.14%
+Thẻ Tín dụng (Credit Card),CREDIT_CARD,EXPANSION,527,"Hạng 1 (< 2%), Hạng 2 (2% - 5%), Hạng 3 (5% - 10%), Hạng 4 (10% - 20%)",14.14%
+Thẻ Tín dụng (Credit Card),CREDIT_CARD,RECESSION,572,"Hạng 1 (< 2%), Hạng 2 (2% - 5%)",14.14%

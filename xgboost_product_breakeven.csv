@@ -1,0 +1,5 @@
+﻿Mã SP,Sản phẩm Vay,Tính chất TSBĐ,Lãi suất r (%),Chi phí vốn c (%),Biên thuần r-c (%),Tổn thất LGD (%),PD* Hòa vốn (%),Điểm FICO Cắt Hòa Vốn,Chiến lược Phê duyệt
+MORTGAGE,Cho vay Mua nhà có TSBĐ,Bất động sản (LTV <= 70%),4.5%,1.0%,3.5%,25.0%,12.28%,544,"Ưu tiên Hạng 1-3, chấp nhận Hạng 4 nếu LTV an toàn"
+AUTO,Cho vay Mua Ô tô (Auto Loan),Đăng ký xe gốc (Khấu hao nhanh),6.5%,1.5%,5.0%,45.0%,10.00%,551,"Phê duyệt chuẩn Hạng 1-2, Hạng 3 thẩm định TSBĐ"
+UNSECURED,Vay Tiêu dùng Tín chấp,100% Tín chấp theo bảng lương,14.0%,3.0%,11.0%,75.0%,12.79%,543,Lãi cao bù rủi ro; chỉ duyệt Hạng 1-3
+CREDIT_CARD,Thẻ Tín dụng (Credit Card),Hạn mức quay vòng tín chấp,18.0%,4.0%,14.0%,85.0%,14.14%,539,Thu phí interchange + lãi phạt; mở rộng Hạng 1-4
