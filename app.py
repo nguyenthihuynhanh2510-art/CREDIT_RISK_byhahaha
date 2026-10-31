@@ -691,11 +691,11 @@ def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_item
         [Paragraph("Nguồn Thu Nhập Thực Nhận", c_bold), Paragraph("Số Tiền (VND/tháng)", c_bold),
          Paragraph("Chỉ Tiêu Nghĩa Vụ Nợ", c_bold), Paragraph("Giá Trị Tính Toán", c_bold)],
         [Paragraph("1. Lương & HĐLĐ cố định", c_txt), Paragraph(f"{financial_details.get('income_salary', 0):,.0f} VND", c_txt),
-         Paragraph("• Tổng dư nợ thẻ tín dụng", c_txt), Paragraph(f"{financial_details.get('total_card_balance', 0):,.0f} VND ({financial_details.get('card_count', 0)} thẻ)", c_txt)],
+         Paragraph("• Nghĩa vụ trả thẻ TD (0.5% HM)", c_txt), Paragraph(f"{financial_details.get('total_card_monthly_debt', 0):,.0f} VND/th ({financial_details.get('card_count', 0)} thẻ)", c_txt)],
         [Paragraph("2. Cho thuê tài sản (nhà, đất, xe)", c_txt), Paragraph(f"{financial_details.get('income_rental', 0):,.0f} VND", c_txt),
-         Paragraph("• Tổng dư nợ khoản vay TCTD", c_txt), Paragraph(f"{financial_details.get('total_loan_balance', 0):,.0f} VND ({financial_details.get('loan_count', 0)} khoản)", c_txt)],
+         Paragraph("• Nghĩa vụ trả nợ vay (Gốc + Lãi)", c_txt), Paragraph(f"{financial_details.get('total_loan_monthly_debt', 0):,.0f} VND/th ({financial_details.get('loan_count', 0)} khoản)", c_txt)],
         [Paragraph("3. Cổ tức / Kinh doanh / Đầu tư", c_txt), Paragraph(f"{financial_details.get('income_business', 0):,.0f} VND", c_txt),
-         Paragraph("• Nghĩa vụ trả nợ vay hiện hữu", c_txt), Paragraph(f"{financial_details.get('monthly_debt_repayment', 0):,.0f} VND/tháng", c_txt)],
+         Paragraph("• Tổng nghĩa vụ nợ hiện hữu", c_bold), Paragraph(f"{financial_details.get('monthly_debt_repayment', 0):,.0f} VND/tháng", c_bold)],
         [Paragraph("4. Thu nhập hợp pháp khác", c_txt), Paragraph(f"{financial_details.get('income_other', 0):,.0f} VND", c_txt),
          Paragraph("• Dự kiến góp khoản vay mới", c_txt), Paragraph(f"{financial_details.get('monthly_new_installment', 0):,.0f} VND/tháng", c_txt)],
         [Paragraph("TỔNG THU NHẬP THỰC NHẬN", c_bold), Paragraph(f"{financial_details.get('total_income_vnd', 0):,.0f} VND/tháng", c_bold),
@@ -716,18 +716,21 @@ def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_item
     if card_items or loan_items:
         detail_rows = [[Paragraph("Danh Mục Thẻ Tín Dụng & Khoản Vay Đang Mở", c_bold), Paragraph("Ngân hàng / TCTD", c_bold), Paragraph("Hạn Mức / Dư Nợ", c_bold), Paragraph("Nghĩa Vụ Hàng Tháng", c_bold)]]
         for c in card_items:
+            c_pay = c.get('monthly_pay', c.get('limit', 0) * 0.005)
             detail_rows.append([
                 Paragraph(f"Thẻ: {c.get('name', 'Thẻ TD')}", c_txt),
                 Paragraph(str(c.get('bank', 'N/A')), c_txt),
                 Paragraph(f"HM: {c.get('limit', 0):,.0f} | DN: {c.get('balance', 0):,.0f}", c_txt),
-                Paragraph(f"Dùng: {(c.get('balance', 0)/c.get('limit', 1)*100) if c.get('limit', 0)>0 else 0:.1f}%", c_txt)
+                Paragraph(f"Góp: {c_pay:,.0f} đ/th (0.5% HM)", c_bold)
             ])
         for l in loan_items:
+            l_pay = l.get('monthly_pay', 0)
+            l_rate = l.get('interest_rate', 0.0)
             detail_rows.append([
                 Paragraph(f"Vay: {l.get('loan_type', 'Khoản vay')}", c_txt),
                 Paragraph(str(l.get('bank', 'N/A')), c_txt),
-                Paragraph(f"Dư nợ: {l.get('balance', 0):,.0f} ({l.get('months_left', 1)} th còn)", c_txt),
-                Paragraph(f"Góp: {l.get('monthly_pay', 0):,.0f} đ/th", c_txt)
+                Paragraph(f"Dư nợ: {l.get('balance', 0):,.0f} (LS: {l_rate:.1f}%/năm)", c_txt),
+                Paragraph(f"Góp: {l_pay:,.0f} đ/th ({l.get('months_left', 1)} th còn)", c_bold)
             ])
         t_det = Table(detail_rows, colWidths=[140, 130, 135, 125])
         t_det.setStyle(TableStyle([
@@ -1004,7 +1007,8 @@ with active_tabs[0]:
                 'bank': 'VIB',
                 'disburse': datetime.date(2023, 6, 15),
                 'mature': datetime.date(2027, 6, 15),
-                'balance': 150_000_000
+                'balance': 150_000_000,
+                'interest_rate': 8.5
             }
         ]
 
@@ -1024,8 +1028,10 @@ with active_tabs[0]:
                 {'bank': 'Techcombank (TCB)', 'name': 'Thẻ JCB Platinum', 'limit': 50_000_000, 'balance': 0}
             ]
             st.session_state.loan_rows = [
-                {'loan_type': 'Vay mua xe ô tô', 'bank': 'VIB', 'disburse': datetime.date(2023, 1, 15), 'mature': datetime.date(2028, 1, 15), 'balance': 150_000_000}
+                {'loan_type': 'Vay mua xe ô tô', 'bank': 'VIB', 'disburse': datetime.date(2023, 1, 15), 'mature': datetime.date(2028, 1, 15), 'balance': 150_000_000, 'interest_rate': 8.5}
             ]
+            st.session_state['_last_cards_count'] = None
+            st.session_state['_last_loans_count'] = None
             st.rerun()
     with sc_c2:
         if st.button("🟡 Mẫu Khách Hàng Tiệm Cận (Hạng 3 - Xem Xét Có Điều Kiện)", use_container_width=True):
@@ -1035,8 +1041,10 @@ with active_tabs[0]:
                 {'bank': 'Sacombank (STB)', 'name': 'Thẻ Visa Classic', 'limit': 20_000_000, 'balance': 14_000_000}
             ]
             st.session_state.loan_rows = [
-                {'loan_type': 'Vay kinh doanh cá thể', 'bank': 'HDBank (HDB)', 'disburse': datetime.date(2022, 6, 10), 'mature': datetime.date(2027, 6, 10), 'balance': 200_000_000}
+                {'loan_type': 'Vay kinh doanh cá thể', 'bank': 'HDBank (HDB)', 'disburse': datetime.date(2022, 6, 10), 'mature': datetime.date(2027, 6, 10), 'balance': 200_000_000, 'interest_rate': 9.8}
             ]
+            st.session_state['_last_cards_count'] = None
+            st.session_state['_last_loans_count'] = None
             st.rerun()
     with sc_c3:
         if st.button("🔴 Mẫu Khách Hàng Nợ Xấu (Hạng 5 - Từ Chối)", use_container_width=True):
@@ -1046,8 +1054,10 @@ with active_tabs[0]:
                 {'bank': 'Shinhan Bank Vietnam', 'name': 'Thẻ Visa Cash Back', 'limit': 15_000_000, 'balance': 14_800_000}
             ]
             st.session_state.loan_rows = [
-                {'loan_type': 'Vay tiêu dùng tín chấp', 'bank': 'MBBank (MB)', 'disburse': datetime.date(2024, 1, 10), 'mature': datetime.date(2025, 1, 10), 'balance': 50_000_000}
+                {'loan_type': 'Vay tiêu dùng tín chấp', 'bank': 'MBBank (MB)', 'disburse': datetime.date(2024, 1, 10), 'mature': datetime.date(2025, 1, 10), 'balance': 50_000_000, 'interest_rate': 14.5}
             ]
+            st.session_state['_last_cards_count'] = None
+            st.session_state['_last_loans_count'] = None
             st.rerun()
             
     # Giá trị mặc định theo preset
@@ -1129,20 +1139,22 @@ with active_tabs[0]:
 
     st.markdown("---")
 
-    # ------------------ PHẦN 4: DANH MỤC THẺ TÍN DỤNG (ĐỘNG + TÌM KIẾM NGÂN HÀNG) ------------------
+    # ------------------ PHẦN 4: DANH MỤC THẺ TÍN DỤNG & NGHĨA VỤ TRẢ THẺ (0.5% HẠN MỨC) ------------------
     st.markdown("""
     <div class="hdb-section-header">
         <span class="hdb-badge">04</span>
         <span class="hdb-title">DANH MỤC THẺ TÍN DỤNG & TỶ LỆ DÙNG HẠN MỨC (REVOLVING UTILIZATION)</span>
     </div>
     """, unsafe_allow_html=True)
-    st.caption("Công thức tài chính: **`Revolving Utilization = Tổng Dư Nợ Đã Dùng / Tổng Hạn Mức Thẻ Được Cấp`**")
+    st.caption("Công thức tài chính: **`Revolving Utilization = Tổng Dư Nợ Đã Dùng / Tổng Hạn Mức Thẻ`** | **`Nghĩa vụ trả nợ thẻ/tháng = Hạn mức x 0.5% (Quy định chung)`**")
     
     with st.expander("💳 Quản lý Danh mục Thẻ Tín dụng (Bấm để xem/thêm/bớt thẻ)", expanded=True):
+        if len(st.session_state.card_rows) == 0:
+            st.info("ℹ️ Khách hàng hiện không có thẻ tín dụng nào đang hoạt động. Nhấn '➕ Thêm Thẻ Tín Dụng Mới' nếu muốn khai báo.")
         # Hiển thị từng dòng thẻ
         updated_cards = []
         for i, card in enumerate(st.session_state.card_rows):
-            c_row1, c_row2, c_row3, c_row4 = st.columns([1.5, 1.2, 1.2, 1.2])
+            c_row1, c_row2, c_row3, c_row4, c_row5 = st.columns([1.4, 1.1, 1.2, 1.2, 1.1])
             with c_row1:
                 # Tìm vị trí index của ngân hàng
                 current_bank = card.get('bank', VN_BANKS[0])
@@ -1151,11 +1163,19 @@ with active_tabs[0]:
             with c_row2:
                 name_val = st.text_input(f"Tên loại thẻ (#{i+1}):", value=card.get('name', f"Thẻ TD #{i+1}"), key=f"c_name_{i}_{st.session_state.cust_preset}")
             with c_row3:
-                limit_val = st.number_input(f"Hạn mức (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=card.get('limit', 50_000_000), step=5_000_000, format="%d", key=f"c_lim_{i}_{st.session_state.cust_preset}")
+                limit_val = st.number_input(f"Hạn mức (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=int(card.get('limit', 50_000_000)), step=5_000_000, format="%d", key=f"c_lim_{i}_{st.session_state.cust_preset}")
             with c_row4:
-                bal_val = st.number_input(f"Dư nợ đã dùng (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=card.get('balance', 0), step=1_000_000, format="%d", key=f"c_bal_{i}_{st.session_state.cust_preset}", help="Cho phép điền 0 nếu chưa dùng")
+                bal_val = st.number_input(f"Dư nợ đã dùng (Thẻ #{i+1}):", min_value=0, max_value=1_000_000_000, value=int(card.get('balance', 0)), step=1_000_000, format="%d", key=f"c_bal_{i}_{st.session_state.cust_preset}", help="Cho phép điền 0 nếu chưa dùng")
+            with c_row5:
+                card_pay = float(limit_val) * 0.005  # Công thức: hạn mức x 0.5% (quy định chung)
+                st.markdown(f"""
+                <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 8px; padding: 6px 8px; margin-top: 25px; text-align: center;">
+                    <div style="font-size: 10px; color: #64748B; font-weight: 700;">GÓP THẺ (0.5% HM)</div>
+                    <div style="font-size: 13.5px; color: #1E3A8A; font-weight: 800;">{card_pay:,.0f} đ/th</div>
+                </div>
+                """, unsafe_allow_html=True)
                 
-            updated_cards.append({'bank': bank_sel, 'name': name_val, 'limit': limit_val, 'balance': bal_val})
+            updated_cards.append({'bank': bank_sel, 'name': name_val, 'limit': limit_val, 'balance': bal_val, 'monthly_pay': card_pay})
             
         st.session_state.card_rows = updated_cards
         
@@ -1163,7 +1183,7 @@ with active_tabs[0]:
         col_c_btn1, col_c_btn2 = st.columns([1, 1])
         with col_c_btn1:
             if st.button("➕ Thêm Thẻ Tín Dụng Mới", use_container_width=True):
-                st.session_state.card_rows.append({'bank': 'Vietcombank (VCB)', 'name': f'Thẻ TD mới #{len(st.session_state.card_rows)+1}', 'limit': 30_000_000, 'balance': 0})
+                st.session_state.card_rows.append({'bank': 'Vietcombank (VCB)', 'name': f'Thẻ TD mới #{len(st.session_state.card_rows)+1}', 'limit': 30_000_000, 'balance': 0, 'monthly_pay': 150_000})
                 st.rerun()
         with col_c_btn2:
             if len(st.session_state.card_rows) > 0:
@@ -1174,40 +1194,45 @@ with active_tabs[0]:
     # Tính toán tổng hợp cho Thẻ tín dụng
     total_card_limit = sum(c['limit'] for c in st.session_state.card_rows)
     total_card_balance = sum(c['balance'] for c in st.session_state.card_rows)
+    total_card_monthly_debt = sum(c['limit'] * 0.005 for c in st.session_state.card_rows)
     calc_utilization = (total_card_balance / total_card_limit) if total_card_limit > 0 else 0.0
     calc_utilization = float(np.clip(calc_utilization, 0.0, 2.5))
-    active_cards_count = sum(1 for c in st.session_state.card_rows if c['limit'] > 0)
     
     util_badge_color = "#10B981" if calc_utilization <= 0.35 else ("#F59E0B" if calc_utilization <= 0.70 else "#EF4444")
     st.markdown(f"""
     <div class="summary-strip">
-        💳 Tổng Số Thẻ: <b>{len(st.session_state.card_rows)} thẻ</b> | 
-        Tổng Hạn Mức Được Cấp: <b>{total_card_limit:,.0f} VND</b> | 
-        Tổng Dư Nợ Đã Dùng: <b>{total_card_balance:,.0f} VND</b> | 
-        Tỷ Lệ Sử Dụng Thẻ Tự Động (Revolving): <b style="color: {util_badge_color}; font-size: 16px;">{calc_utilization*100:.2f}%</b>
+        💳 <b>Tổng Số Thẻ:</b> <b>{len(st.session_state.card_rows)} thẻ</b> | 
+        <b>Tổng Hạn Mức Được Cấp:</b> <b>{total_card_limit:,.0f} VND</b> | 
+        <b>Tổng Dư Nợ Đã Dùng:</b> <b>{total_card_balance:,.0f} VND</b> | 
+        <b>Tỷ Lệ Dùng Thẻ (Revolving):</b> <b style="color: {util_badge_color}; font-size: 15px;">{calc_utilization*100:.2f}%</b><br/>
+        👉 <b>Tổng Nghĩa Vụ Trả Nợ Thẻ Hàng Tháng (0.5% Hạn Mức):</b> 
+        <b style="color: #1E3A8A; font-size: 16px;">{total_card_monthly_debt:,.0f} VND/tháng</b>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # ------------------ PHẦN 5: DANH MỤC KHOẢN NỢ VAY (TÁCH CỘT + ĐỘNG + LỊCH MỞ RỘNG) ------------------
+    # ------------------ PHẦN 5: DANH MỤC KHOẢN NỢ VAY (TÁCH CỘT + ĐỘNG + LÃI SUẤT + LỊCH MỞ RỘNG) ------------------
     st.markdown("""
     <div class="hdb-section-header">
         <span class="hdb-badge">05</span>
         <span class="hdb-title">DANH MỤC KHOẢN NỢ VAY & TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO)</span>
     </div>
     """, unsafe_allow_html=True)
-    st.caption("Công thức tài chính: **`Nghĩa vụ hàng tháng = Dư nợ / Số tháng còn lại (Ngày đến hạn - Hôm nay)`** | **`DebtRatio = Tổng nghĩa vụ nợ tháng / Tổng thu nhập tháng`**")
+    st.caption("Công thức tài chính: **`Nợ mỗi tháng = Dư nợ còn lại / Số tháng còn lại + (Lãi suất năm / 12) x Dư nợ còn lại`** | **`DebtRatio = Tổng nghĩa vụ nợ tháng (Thẻ + Vay) / Tổng thu nhập tháng`**")
     
     today_dt = datetime.date.today()
     
     with st.expander("🏦 Quản lý Danh mục Khoản Nợ Vay (Bấm để xem/thêm/bớt khoản vay)", expanded=True):
+        if len(st.session_state.loan_rows) == 0:
+            st.info("ℹ️ Khách hàng hiện không có khoản nợ vay nào tại các TCTD. Nhấn '➕ Thêm Khoản Nợ Vay Mới' nếu muốn khai báo.")
+            
         updated_loans = []
         loan_repayment_details = []
         
         for j, loan in enumerate(st.session_state.loan_rows):
             st.markdown(f"**📌 Khoản Nợ Vay #{j+1}:**")
-            col_l1, col_l2, col_l3, col_l4, col_l5 = st.columns([1.5, 1.5, 1.2, 1.2, 1.4])
+            col_l1, col_l2, col_l3, col_l4, col_l5, col_l6 = st.columns([1.3, 1.2, 1.0, 1.0, 1.2, 0.9])
             
             with col_l1:
                 # Cột Khoản vay: Chuyên viên tự nhập
@@ -1216,9 +1241,9 @@ with active_tabs[0]:
                 # Cột TCTD: Danh sách ngân hàng cho phép tìm kiếm
                 cur_lbank = loan.get('bank', 'VIB')
                 lb_idx = VN_BANKS.index(cur_lbank) if cur_lbank in VN_BANKS else 0
-                l_bank_val = st.selectbox(f"Tổ chức tín dụng (TCTD #{j+1}):", options=VN_BANKS, index=lb_idx, key=f"l_bank_{j}_{st.session_state.cust_preset}")
+                l_bank_val = st.selectbox(f"Tổ chức tín dụng (#{j+1}):", options=VN_BANKS, index=lb_idx, key=f"l_bank_{j}_{st.session_state.cust_preset}")
             with col_l3:
-                # Cột Ngày giải ngân: Mở rộng lịch từ năm 2000 đến 2060, gõ trực tiếp được
+                # Cột Ngày giải ngân: Mở rộng lịch từ năm 1990 đến 2070, gõ trực tiếp được
                 dis_val = st.date_input(
                     f"Ngày giải ngân (#{j+1}):",
                     value=loan.get('disburse', today_dt - datetime.timedelta(days=365)),
@@ -1242,18 +1267,41 @@ with active_tabs[0]:
                 bal_val = st.number_input(
                     f"Dư nợ gốc còn lại (#{j+1}):",
                     min_value=0, max_value=10_000_000_000,
-                    value=loan.get('balance', 100_000_000),
+                    value=int(loan.get('balance', 100_000_000)),
                     step=10_000_000,
                     format="%d",
                     key=f"l_bal_{j}_{st.session_state.cust_preset}"
                 )
+            with col_l6:
+                # Cột Lãi suất (%/năm) do TCTD áp dụng
+                rate_val = st.number_input(
+                    f"Lãi suất (%/năm #{j+1}):",
+                    min_value=0.0, max_value=60.0,
+                    value=float(loan.get('interest_rate', 9.5)),
+                    step=0.1,
+                    format="%.2f",
+                    key=f"l_rate_{j}_{st.session_state.cust_preset}",
+                    help="Quy định lãi suất năm do TCTD cho vay ấn định"
+                )
                 
-            # Tính số tháng còn lại và nghĩa vụ trả nợ tháng của khoản này
+            # Tính số tháng còn lại và nghĩa vụ trả nợ tháng của khoản này theo đúng công thức
             days_left = (mat_val - today_dt).days
             months_left = max(1, round(days_left / 30.4375)) if days_left > 0 else 1
-            monthly_pay = (bal_val / months_left) if (bal_val > 0 and months_left > 0) else 0.0
+            # Gốc trả mỗi tháng = dư nợ còn lại / số tháng còn lại
+            principal_monthly = (bal_val / months_left) if (bal_val > 0 and months_left > 0) else 0.0
+            # Lãi 1 tháng = (lãi suất năm / 12) * dư nợ còn lại
+            interest_monthly = (bal_val * (rate_val / 100.0) / 12.0) if bal_val > 0 else 0.0
+            # Tổng nợ mỗi tháng = Gốc + Lãi cố định
+            monthly_pay = principal_monthly + interest_monthly
             
-            st.caption(f"📅 Ngày hôm nay: **`{today_dt.strftime('%d/%m/%Y')}`** | Số tháng còn lại: **`{months_left} tháng`** | Nghĩa vụ trả nợ gốc/tháng: **`{monthly_pay:,.0f} VND/tháng`**")
+            st.caption(
+                f"📅 Ngày thẩm định: **`{today_dt.strftime('%d/%m/%Y')}`** | "
+                f"Số tháng còn lại: **`{months_left} tháng`** ({days_left} ngày) | "
+                f"Gốc/tháng: **`{principal_monthly:,.0f} đ`** | "
+                f"Lãi/tháng ({rate_val:.2f}%/năm): **`{interest_monthly:,.0f} đ`** ⟹ "
+                f"👉 **Tổng góp khoản vay #{j+1}:** <b style='color: #1E3A8A; font-size: 14px;'>{monthly_pay:,.0f} VND/tháng</b>",
+                unsafe_allow_html=True
+            )
             st.markdown("<hr style='margin: 8px 0; border: none; border-top: 1px dashed #CBD5E1;'>", unsafe_allow_html=True)
             
             updated_loans.append({
@@ -1262,7 +1310,10 @@ with active_tabs[0]:
                 'disburse': dis_val,
                 'mature': mat_val,
                 'balance': bal_val,
+                'interest_rate': rate_val,
                 'months_left': months_left,
+                'principal_monthly': principal_monthly,
+                'interest_monthly': interest_monthly,
                 'monthly_pay': monthly_pay
             })
             
@@ -1277,7 +1328,8 @@ with active_tabs[0]:
                     'bank': 'VietinBank (CTG)',
                     'disburse': today_dt,
                     'mature': today_dt + datetime.timedelta(days=365*3),
-                    'balance': 50_000_000
+                    'balance': 50_000_000,
+                    'interest_rate': 9.0
                 })
                 st.rerun()
         with col_l_btn2:
@@ -1286,10 +1338,12 @@ with active_tabs[0]:
                     st.session_state.loan_rows.pop()
                     st.rerun()
 
-    # Tổng nghĩa vụ nợ hàng tháng
+    # Tổng hợp nghĩa vụ nợ hàng tháng đầy đủ (Mục 4: Thẻ + Khoản vay)
     total_loan_balance = sum(l['balance'] for l in st.session_state.loan_rows)
-    total_monthly_debt = sum(l['monthly_pay'] for l in st.session_state.loan_rows)
-    active_loans_count = sum(1 for l in st.session_state.loan_rows if l['balance'] > 0)
+    total_loan_monthly_debt = sum(l['monthly_pay'] for l in st.session_state.loan_rows)
+    
+    # TỔNG NGHĨA VỤ NỢ HÀNG THÁNG CỦA KHÁCH HÀNG (THẺ TÍN DỤNG + KHOẢN VAY)
+    total_monthly_debt = total_card_monthly_debt + total_loan_monthly_debt
     
     # Tính DebtRatio = Tổng nghĩa vụ nợ hàng tháng / Tổng thu nhập hàng tháng
     calc_debt_ratio = (total_monthly_debt / total_income_vnd) if total_income_vnd > 0 else 1.0
@@ -1298,9 +1352,13 @@ with active_tabs[0]:
     debt_badge_color = "#10B981" if calc_debt_ratio <= 0.40 else ("#F59E0B" if calc_debt_ratio <= 0.60 else "#EF4444")
     st.markdown(f"""
     <div class="summary-strip">
-        🏦 Tổng Dư Nợ Khoản Vay Còn Lại: <b>{total_loan_balance:,.0f} VND</b> | 
-        Tổng Nghĩa Vụ Trả Nợ Vay Hàng Tháng (SUM): <b style="color: #1E3A8A; font-size: 16px;">{total_monthly_debt:,.0f} VND/tháng</b> | 
-        Tỷ Số Nợ Trên Thu Nhập Tự Động (DebtRatio): <b style="color: {debt_badge_color}; font-size: 16px;">{calc_debt_ratio*100:.2f}%</b> ({calc_debt_ratio:.4f})
+        🏦 <b>Tổng Dư Nợ Khoản Vay Còn Lại:</b> <b>{total_loan_balance:,.0f} VND</b> | 
+        <b>Nghĩa Vụ Trả Nợ Vay (Gốc + Lãi):</b> <b style="color: #1E3A8A;">{total_loan_monthly_debt:,.0f} VND/tháng</b><br/>
+        💳 <b>Nghĩa Vụ Trả Thẻ Tín Dụng (0.5% HM):</b> <b style="color: #1E3A8A;">{total_card_monthly_debt:,.0f} VND/tháng</b><br/>
+        💰 <b>TỔNG NGHĨA VỤ NỢ HÀNG THÁNG (THẺ + VAY):</b> 
+        <b style="color: #1E3A8A; font-size: 17px;">{total_monthly_debt:,.0f} VND/tháng</b> | 
+        <b>Tỷ Số Nợ Trên Thu Nhập Tự Động (DebtRatio):</b> 
+        <b style="color: {debt_badge_color}; font-size: 17px;">{calc_debt_ratio*100:.2f}%</b> ({calc_debt_ratio:.4f})
     </div>
     """, unsafe_allow_html=True)
 
@@ -1314,19 +1372,28 @@ with active_tabs[0]:
     </div>
     """, unsafe_allow_html=True)
     
-    auto_open_accounts = active_cards_count + active_loans_count
+    total_cards_count = len(st.session_state.card_rows)
+    total_loans_count = len(st.session_state.loan_rows)
+    auto_open_accounts = total_cards_count + total_loans_count
+    
+    open_acc_key = f"open_acc_{st.session_state.cust_preset}"
+    # Đảm bảo đồng bộ động: Nếu số lượng thẻ hoặc khoản vay thay đổi, tự động cập nhật lại số tài khoản đang mở
+    if (open_acc_key not in st.session_state or 
+        st.session_state.get('_last_cards_count') != total_cards_count or 
+        st.session_state.get('_last_loans_count') != total_loans_count):
+        st.session_state[open_acc_key] = auto_open_accounts
+        st.session_state['_last_cards_count'] = total_cards_count
+        st.session_state['_last_loans_count'] = total_loans_count
     
     col_acc1, col_acc2 = st.columns(2)
     with col_acc1:
         open_loans_input = st.number_input(
             "Tổng số thẻ tín dụng và khoản vay đang mở (NumberOfOpenCreditLinesAndLoans):",
             min_value=0, max_value=50,
-            value=max(auto_open_accounts, 2),
-            step=1,
-            key=f"open_acc_{st.session_state.cust_preset}",
-            help=f"Tự động tính = {active_cards_count} thẻ tín dụng + {active_loans_count} khoản vay. Cán bộ có thể cộng thêm hạn mức thấu chi nếu có."
+            key=open_acc_key,
+            help=f"Tự động tính = {total_cards_count} thẻ tín dụng + {total_loans_count} khoản nợ vay. Cán bộ có thể cộng thêm hạn mức thấu chi nếu có."
         )
-        st.caption(f"✓ **Tự động liên kết:** Đã cộng {active_cards_count} thẻ tín dụng và {active_loans_count} khoản nợ vay đang mở.")
+        st.caption(f"✓ **Tự động liên kết công thức:** {total_cards_count} thẻ tín dụng + {total_loans_count} khoản nợ vay = **{open_loans_input} tài khoản đang mở**.")
     with col_acc2:
         re_loans_input = st.number_input(
             "Số khoản vay bất động sản / thế chấp (NumberRealEstateLoansOrLines):",
@@ -1338,7 +1405,7 @@ with active_tabs[0]:
         )
         st.caption("📌 **Ghi chú nghiệp vụ:** Cán bộ tín dụng tự điền số lượng khoản vay BĐS/thế chấp dựa vào thông tin tra cứu trên bản sao kê CIC.")
 
-    # Đóng gói dữ liệu 11 đặc trưng hoàn chỉnh
+        # Đóng gói dữ liệu 11 đặc trưng hoàn chỉnh
     customer_features_payload = {
         'RevolvingUtilizationOfUnsecuredLines': calc_utilization,
         'age': cust_age,
@@ -1367,8 +1434,10 @@ with active_tabs[0]:
         'card_count': len(st.session_state.card_rows),
         'total_card_limit': total_card_limit,
         'total_card_balance': total_card_balance,
+        'total_card_monthly_debt': total_card_monthly_debt,
         'loan_count': len(st.session_state.loan_rows),
         'total_loan_balance': total_loan_balance,
+        'total_loan_monthly_debt': total_loan_monthly_debt,
         'monthly_debt_repayment': total_monthly_debt,
         'monthly_new_installment': est_new_installment,
         'total_debt_monthly': total_debt_with_new,
