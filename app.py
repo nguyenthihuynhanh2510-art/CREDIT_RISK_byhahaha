@@ -132,54 +132,73 @@ st.set_page_config(
 # Custom CSS phong cách Báo cáo thường niên Ngân hàng cao cấp (HDBank inspired)
 st.markdown("""
 <style>
+    /* NỀN TẢNG THIẾT KẾ: FINTECH BANKING BLUE PALETTE HIỆN ĐẠI & SANG TRỌNG */
     :root {
-        --primary-navy: #0F172A;
-        --secondary-navy: #1E3A8A;
-        --accent-gold: #D97706;
+        --primary-blue: #1D4ED8;
+        --navy-dark: #0A2540;
+        --navy-mid: #0F3E6D;
         --accent-blue: #2563EB;
-        --success-emerald: #10B981;
-        --warning-amber: #F59E0B;
-        --danger-crimson: #EF4444;
-        --card-bg: #FFFFFF;
-        --border-color: #E2E8F0;
+        --ice-blue: #F0F5FA;
+        --card-white: #FFFFFF;
+        --border-blue: #D6E4F0;
+        --text-main: #1E293B;
+        --text-muted: #64748B;
+        --success-green: #059669;
+        --warning-yellow: #D97706;
+        --danger-red: #DC2626;
     }
     
-    /* Header chính */
+    /* Màu nền toàn bộ website chuyển sang tone xanh dương Fintech nhạt thanh lịch */
+    .stApp {
+        background: linear-gradient(180deg, #F0F6FC 0%, #E8F1FA 50%, #F5F9FD 100%) !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+        font-size: 15.5px !important;
+        color: #1E293B !important;
+    }
+    
+    /* Thanh bên Sidebar phong cách Bank Portal */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #F8FAFD 0%, #EDF4FA 100%) !important;
+        border-right: 1px solid #D6E4F0 !important;
+    }
+    
+    /* Header chính màu xanh dương quyền uy */
     .main-header {
-        background: linear-gradient(135deg, #0A192F 0%, #1E3A8A 60%, #1E40AF 100%);
-        color: white;
-        padding: 26px 32px;
-        border-radius: 14px;
-        margin-bottom: 22px;
-        box-shadow: 0 8px 25px rgba(15, 23, 42, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: linear-gradient(135deg, #0A2540 0%, #153E75 45%, #1D4ED8 100%) !important;
+        color: white !important;
+        padding: 26px 32px !important;
+        border-radius: 14px !important;
+        margin-bottom: 22px !important;
+        box-shadow: 0 8px 25px rgba(10, 37, 64, 0.18) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .main-header h1 {
-        color: white;
-        margin: 0;
-        font-size: 26px;
-        font-weight: 800;
-        letter-spacing: -0.5px;
+        color: white !important;
+        margin: 0 !important;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.5px !important;
     }
     .main-header p {
-        color: #93C5FD;
-        margin: 6px 0 0 0;
-        font-size: 14px;
+        color: #BAE6FD !important;
+        margin: 6px 0 0 0 !important;
+        font-size: 15px !important;
     }
     
-    /* Card kiểu HDBank Annual Report */
-    .hdb-card {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 20px 24px;
-        box-shadow: 0 4px 18px rgba(15, 23, 42, 0.04);
-        margin-bottom: 18px;
-        transition: all 0.25s ease;
+    /* Thẻ Card trắng nổi bật với viền xanh mỏng tinh tế */
+    .hdb-card, .metric-card {
+        background: #FFFFFF !important;
+        border: 1px solid #D6E4F0 !important;
+        border-radius: 12px !important;
+        padding: 20px 24px !important;
+        box-shadow: 0 4px 16px rgba(15, 35, 71, 0.05) !important;
+        margin-bottom: 18px !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
-    .hdb-card:hover {
-        border-color: #CBD5E1;
-        box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
+    .hdb-card:hover, .metric-card:hover {
+        border-color: #93C5FD !important;
+        box-shadow: 0 8px 26px rgba(15, 35, 71, 0.1) !important;
+        transform: translateY(-2px) !important;
     }
     
     /* Tiêu đề phân đoạn có số badge nổi bật */
@@ -187,150 +206,187 @@ st.markdown("""
         display: flex;
         align-items: center;
         gap: 12px;
-        margin-top: 10px;
+        margin-top: 14px;
         margin-bottom: 14px;
         padding-bottom: 8px;
-        border-bottom: 2px solid #F1F5F9;
+        border-bottom: 2px solid #E2ECF7;
     }
     .hdb-badge {
-        background: linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%);
-        color: #F8FAFC;
-        font-size: 13px;
-        font-weight: 800;
-        padding: 4px 11px;
-        border-radius: 6px;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 6px rgba(30, 58, 138, 0.25);
+        background: linear-gradient(135deg, #0A2540 0%, #1D4ED8 100%) !important;
+        color: #F8FAFC !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        padding: 4px 11px !important;
+        border-radius: 6px !important;
+        letter-spacing: 0.5px !important;
+        box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25) !important;
     }
     .hdb-title {
-        font-size: 15px;
-        font-weight: 700;
-        color: #0F172A;
-        letter-spacing: -0.2px;
-        text-transform: uppercase;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #0F2347 !important;
+        letter-spacing: -0.2px !important;
+        text-transform: uppercase !important;
     }
     
-    /* Thẻ đo lường */
-    .metric-card {
-        background-color: var(--card-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        padding: 18px;
-        box-shadow: 0 3px 10px rgba(0,0,0,0.04);
-        margin-bottom: 14px;
-    }
+    /* Thẻ đo lường chỉ số */
     .metric-label {
-        font-size: 12px;
-        font-weight: 600;
-        color: #64748B;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        color: #64748B !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
     .metric-value {
-        font-size: 26px;
-        font-weight: 800;
-        color: #0F172A;
-        margin: 4px 0;
+        font-size: 26px !important;
+        font-weight: 800 !important;
+        color: #0F2347 !important;
+        margin: 4px 0 !important;
     }
     
-    /* Quyết định phê duyệt */
+    /* Nút bấm tiện nghi, bo góc mềm mại, hover mượt mà */
+    div.stButton > button {
+        border-radius: 10px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 0.65rem 1.35rem !important;
+        border: 1px solid #CBD5E1 !important;
+        background-color: #FFFFFF !important;
+        color: #0F2347 !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    }
+    div.stButton > button:hover {
+        border-color: #2563EB !important;
+        color: #1D4ED8 !important;
+        background-color: #EFF6FF !important;
+        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.15) !important;
+        transform: translateY(-2px) !important;
+    }
+    div.stButton > button[kind="primary"], div.stButton > button[data-testid="baseButton-primary"] {
+        background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+    }
+    div.stButton > button[kind="primary"]:hover, div.stButton > button[data-testid="baseButton-primary"]:hover {
+        background: linear-gradient(135deg, #1E40AF 0%, #1D4ED8 100%) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    /* Nút tải về File Download Button */
+    div.stDownloadButton > button {
+        border-radius: 10px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        padding: 0.65rem 1.35rem !important;
+        background: linear-gradient(135deg, #059669 0%, #10B981 100%) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(5, 150, 105, 0.25) !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    div.stDownloadButton > button:hover {
+        background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+        box-shadow: 0 6px 20px rgba(5, 150, 105, 0.4) !important;
+        transform: translateY(-2px) !important;
+    }
+    
+    /* Hộp kết luận phê duyệt */
     .decision-approved {
-        background-color: #ECFDF5;
-        border-left: 5px solid #10B981;
-        padding: 14px 18px;
-        border-radius: 8px;
-        color: #065F46;
-        font-size: 16px;
-        font-weight: bold;
-        margin-bottom: 14px;
+        background-color: #ECFDF5 !important;
+        border-left: 5px solid #059669 !important;
+        padding: 14px 18px !important;
+        border-radius: 8px !important;
+        color: #065F46 !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        margin-bottom: 14px !important;
     }
     .decision-conditional {
-        background-color: #FFFBEB;
-        border-left: 5px solid #F59E0B;
-        padding: 14px 18px;
-        border-radius: 8px;
-        color: #92400E;
-        font-size: 16px;
-        font-weight: bold;
-        margin-bottom: 14px;
+        background-color: #FFFBEB !important;
+        border-left: 5px solid #D97706 !important;
+        padding: 14px 18px !important;
+        border-radius: 8px !important;
+        color: #92400E !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        margin-bottom: 14px !important;
     }
     .decision-rejected {
-        background-color: #FEF2F2;
-        border-left: 5px solid #EF4444;
-        padding: 14px 18px;
-        border-radius: 8px;
-        color: #991B1B;
-        font-size: 16px;
-        font-weight: bold;
-        margin-bottom: 14px;
+        background-color: #FEF2F2 !important;
+        border-left: 5px solid #DC2626 !important;
+        padding: 14px 18px !important;
+        border-radius: 8px !important;
+        color: #991B1B !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        margin-bottom: 14px !important;
     }
+    .decision-approved-xgb {
+        background-color: #F5F3FF !important;
+        border-left: 5px solid #7C3AED !important;
+        color: #4C1D95 !important;
+        padding: 14px 18px !important;
+        border-radius: 8px !important;
+        margin-bottom: 14px !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+    }
+    
+    /* Box đối sánh 3 mô hình */
     .reconciliation-box {
-        background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
-        border: 1px solid #BFDBFE;
-        border-radius: 12px;
-        padding: 16px 20px;
-        margin-top: 12px;
-        margin-bottom: 16px;
+        background: #FFFFFF !important;
+        border: 1px solid #BFDBFE !important;
+        border-radius: 12px !important;
+        padding: 18px 22px !important;
+        margin-top: 14px !important;
+        margin-bottom: 16px !important;
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.06) !important;
     }
     .summary-strip {
-        background-color: #F8FAFC;
-        border: 1px solid #E2E8F0;
-        padding: 12px 18px;
-        border-radius: 10px;
-        margin-top: 8px;
-        margin-bottom: 8px;
+        background-color: #EFF6FF !important;
+        border: 1px solid #BFDBFE !important;
+        padding: 12px 18px !important;
+        border-radius: 10px !important;
+        margin-top: 10px !important;
+        margin-bottom: 10px !important;
     }
     
+    /* Tabs Navigation */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 8px !important;
+        border-bottom: 2px solid #D6E4F0 !important;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: #F1F5F9;
-        border-radius: 8px 8px 0px 0px;
-        padding: 9px 18px;
-        font-weight: 600;
+        background-color: #E2ECF7 !important;
+        color: #334155 !important;
+        border-radius: 10px 10px 0px 0px !important;
+        padding: 10px 22px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        background-color: #D6E4F0 !important;
+        color: #1D4ED8 !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #1E3A8A !important;
-        color: white !important;
-    }
-
-    .decision-approved-xgb {
-        background-color: #F5F3FF;
-        border-left: 5px solid #7C3AED;
-        color: #4C1D95;
-        padding: 12px 16px;
-        border-radius: 4px;
-        margin-bottom: 12px;
-        font-weight: 600;
-    }
-    .metric-card-xgb {
-        background: #FFFFFF;
-        border: 1px solid #DDD6FE;
-        border-top: 3px solid #7C3AED;
-        border-radius: 8px;
-        padding: 14px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        background: linear-gradient(135deg, #0A2540 0%, #1D4ED8 100%) !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25) !important;
     }
     
-    .decision-approved-xgb {
-        background-color: #F5F3FF;
-        border-left: 5px solid #7C3AED;
-        color: #4C1D95;
-        padding: 12px 16px;
-        border-radius: 4px;
-        margin-bottom: 12px;
-        font-weight: 600;
+    /* Tăng font chữ cơ sở và padding */
+    p, span, label, .stMarkdown, .stText {
+        font-size: 15.5px !important;
+        line-height: 1.6 !important;
     }
-    .metric-card-xgb {
-        background: #FFFFFF;
-        border: 1px solid #DDD6FE;
-        border-top: 3px solid #7C3AED;
-        border-radius: 8px;
-        padding: 14px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    h1, h2, h3, h4, h5, h6 {
+        color: #0F2347 !important;
     }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
 # ==============================================================================
@@ -1269,13 +1325,13 @@ with st.sidebar:
         "Chế độ Mô hình Thẩm định:",
         options=["ALL_TRIPLE", "DECISION_TREE", "LOGISTIC_REGRESSION", "XGBOOST"],
         format_func=lambda x: {
-            "ALL_TRIPLE": "⚖️ So Sánh Song Song Cả 3 Mô Hình (Triple Evaluation)",
-            "DECISION_TREE": "🌲 Cây Quyết Định (Decision Tree - White-box)",
-            "LOGISTIC_REGRESSION": "📈 Hồi Quy Logistic (Logistic Engine - Chuẩn Mực Vàng)",
-            "XGBOOST": "🚀 XGBoost (Gradient Boosting - Độ Chính Xác Đỉnh Cao)"
+            "ALL_TRIPLE": "⚖️ So Sánh Đồng Thời Cả 3 Mô Hình",
+            "DECISION_TREE": "🌲 Mô Hình 1: Cây Quyết Định (Quy Tắc Rõ Ràng)",
+            "LOGISTIC_REGRESSION": "📈 Mô Hình 2: Hồi Quy Logistic (Chuẩn Mực Truyền Thống)",
+            "XGBOOST": "🚀 Mô Hình 3: AI Thông Minh (XGBoost - Chính Xác Cao)"
         }[x],
         index=0,
-        help="Chọn chế độ đối sánh song song cả 3 mô hình hoặc kiểm thử chuyên sâu từng mô hình"
+        help="Chọn chế độ so sánh đối sánh cả 3 mô hình hoặc đánh giá từng mô hình riêng biệt"
     )
     
     st.markdown("---")
@@ -1506,7 +1562,7 @@ with active_tabs[0]:
     total_income_vnd = income_salary + income_rental + income_biz + income_other
     cust_income_model = total_income_vnd / 25_000.0 if total_income_vnd > 0 else 0.0
     
-    st.info(f"📊 **Tổng Thu Nhập Gộp Xác Minh:** **`{total_income_vnd:,.0f} VND/tháng`** (Quy đổi chuẩn hóa tập huấn luyện GMSC: **`{cust_income_model:,.1f} USD/tháng`** theo tỷ giá 25,000 VND/USD).")
+    st.info(f"📊 **Tổng Thu Nhập Gộp Hàng Tháng:** **`{total_income_vnd:,.0f} VND/tháng`** (Đã xác minh qua bảng lương và nguồn thu hợp pháp).")
 
     st.markdown("---")
 
@@ -1805,7 +1861,7 @@ with active_tabs[0]:
                 💰 <b>TỔNG NGHĨA VỤ NỢ HÀNG THÁNG (TỬ SỐ):</b> <b style="color: #1E3A8A; font-size: 16px;">{total_monthly_debt:,.0f} VND/tháng</b> | 
                 <b>Thu Nhập Gộp (Mẫu số):</b> <b>{total_income_vnd:,.0f} VND/tháng</b><br/>
                 👉 <b>TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO):</b> 
-                <b style="color: {dr_badge_col}; font-size: 20px;">{dr_pct:.2f}%</b> (Giá trị truyền vào mô hình FICO: <code style="font-weight: bold; font-size: 14px;">{dr_val:.4f}</code>)
+                <b style="color: {dr_badge_col}; font-size: 20px;">{dr_pct:.2f}%</b>
             </div>
             <div>
                 <span style="background: {'#DCFCE7' if dr_pct<=45 else ('#FEF3C7' if dr_pct<=70 else '#FEE2E2')}; color: {dr_badge_col}; font-size: 12px; font-weight: bold; padding: 6px 12px; border-radius: 8px;">
@@ -1819,12 +1875,12 @@ with active_tabs[0]:
     st.markdown("---")
 
     # ------------------ MODULE 07: TỔNG HỢP SỐ LƯỢNG TÀI KHOẢN TÍN DỤNG & BẤT ĐỘNG SẢN (CIC) ------------------
-    st.markdown("""
+    st.markdown('''
     <div class="hdb-section-header">
         <span class="hdb-badge">07</span>
         <span class="hdb-title">TỔNG HỢP SỐ LƯỢNG TÀI KHOẢN TÍN DỤNG & KHOẢN VAY BẤT ĐỘNG SẢN (CIC)</span>
     </div>
-    """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
     # Tính 2 chỉ số chuẩn
     n_open = len(open_cards) + len(open_loans)
@@ -1832,72 +1888,41 @@ with active_tabs[0]:
 
     col_c7_1, col_c7_2 = st.columns(2)
     with col_c7_1:
-        st.markdown(f"""
-        <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 4px solid #1E3A8A; border-radius: 8px; padding: 16px;">
-            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">NumberOfOpenCreditLinesAndLoans</div>
-            <div style="font-size: 28px; font-weight: 800; color: #1E3A8A; margin: 4px 0;">{n_open} <span style="font-size: 14px; font-weight: 500; color: #64748B;">tài khoản</span></div>
-            <div style="font-size: 12px; color: #334155;">Gồm: <b>{len(open_cards)}</b> thẻ tín dụng/thấu chi + <b>{len(open_loans)}</b> khoản vay trả góp</div>
+        st.markdown(f'''
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase;">TỔNG SỐ TÀI KHOẢN TÍN DỤNG ĐANG MỞ</div>
+            <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 15px; font-weight: 500; color: #64748B;">tài khoản</span></div>
+            <div style="font-size: 13px; color: #475569;">Bao gồm: <b>{len(open_cards)}</b> thẻ tín dụng/thấu chi + <b>{len(open_loans)}</b> khoản vay trả góp</div>
         </div>
-        """, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
     with col_c7_2:
-        st.markdown(f"""
-        <div style="background: #F8FAFC; border: 1px solid #CBD5E1; border-top: 4px solid #047857; border-radius: 8px; padding: 16px;">
-            <div style="font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase;">NumberRealEstateLoansOrLines</div>
-            <div style="font-size: 28px; font-weight: 800; color: #047857; margin: 4px 0;">{n_re} <span style="font-size: 14px; font-weight: 500; color: #64748B;">khoản</span></div>
-            <div style="font-size: 12px; color: #334155;">Khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD</div>
+        st.markdown(f'''
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #059669; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase;">KHOẢN VAY BẤT ĐỘNG SẢN / THẾ CHẤP NHÀ</div>
+            <div style="font-size: 28px; font-weight: 800; color: #059669; margin: 6px 0;">{n_re} <span style="font-size: 15px; font-weight: 500; color: #64748B;">khoản</span></div>
+            <div style="font-size: 13px; color: #475569;">Khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD</div>
         </div>
-        """, unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
 
     st.markdown("---")
 
-    # ------------------ BẢNG TỔNG HỢP 4 FEATURE ĐẦU VÀO MÔ HÌNH CREDIT SCORING ------------------
-    st.markdown("""
-    <div style="background: #0F172A; border-radius: 8px; padding: 12px 18px; margin-bottom: 12px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h3 style="color: #F8FAFC; margin: 0; font-size: 16px; font-weight: 700;">🎯 BẢNG TỔNG HỢP 4 ĐẶC TRƯNG ĐẦU VÀO MÔ HÌNH FICO (READ-ONLY)</h3>
-                <p style="color: #94A3B8; margin: 4px 0 0 0; font-size: 12px;">Dữ liệu tự động tính toán chuẩn xác và nạp trực tiếp vào 3 mô hình Machine Learning</p>
+    # BẢNG TỔNG KẾT HỒ SƠ TÍN DỤNG ĐỒNG BỘ TINH GỌN
+    st.markdown(f'''
+    <div style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border: 1px solid #BFDBFE; border-left: 5px solid #1D4ED8; border-radius: 10px; padding: 14px 20px; margin-top: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div>
+            <b style="color: #0F2347; font-size: 15.5px;">✓ Dữ liệu hồ sơ tài chính & lịch sử tín dụng đã được xác thực tự động</b>
+            <div style="font-size: 13.5px; color: #334155; margin-top: 4px;">
+                Tỷ lệ dùng thẻ: <b style="color: {ru_color};">{ru_pct:.1f}%</b> | 
+                Tỷ lệ nợ/thu nhập (DSR): <b style="color: {dr_badge_col};">{dr_pct:.1f}%</b> | 
+                Tài khoản tín dụng: <b>{n_open}</b> | 
+                Vay BĐS: <b>{n_re} khoản</b>
             </div>
-            <div>
-                <span style="background: #10B981; color: white; font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 15px;">✓ DỮ LIỆU SẴN SÀNG</span>
-            </div>
+        </div>
+        <div>
+            <span style="background: #059669; color: white; font-size: 12px; font-weight: bold; padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);">SẴN SÀNG CHẤM ĐIỂM FICO</span>
         </div>
     </div>
-    """, unsafe_allow_html=True)
-
-    sm_c1, sm_c2, sm_c3, sm_c4 = st.columns(4)
-    with sm_c1:
-        st.markdown(f"""
-        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; color: #64748B; font-weight: 700;">NumberRealEstateLoansOrLines</div>
-            <div style="font-size: 26px; font-weight: 800; color: #047857; margin: 6px 0;">{n_re} <span style="font-size: 13px; font-weight: 500;">khoản</span></div>
-            <div style="font-size: 11px; color: #334155; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">FICO Input: <b>{float(n_re):.1f}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-    with sm_c2:
-        st.markdown(f"""
-        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; color: #64748B; font-weight: 700;">NumberOfOpenCreditLinesAndLoans</div>
-            <div style="font-size: 26px; font-weight: 800; color: #1E3A8A; margin: 6px 0;">{n_open} <span style="font-size: 13px; font-weight: 500;">tài khoản</span></div>
-            <div style="font-size: 11px; color: #334155; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">FICO Input: <b>{float(n_open):.1f}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-    with sm_c3:
-        st.markdown(f"""
-        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; color: #64748B; font-weight: 700;">RevolvingUtilization</div>
-            <div style="font-size: 26px; font-weight: 800; color: {ru_color}; margin: 6px 0;">{ru_pct:.2f}%</div>
-            <div style="font-size: 11px; color: #334155; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">FICO Input: <b>{ru_val:.4f}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-    with sm_c4:
-        st.markdown(f"""
-        <div style="background: white; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-size: 11px; color: #64748B; font-weight: 700;">DebtRatio (Tổng hợp)</div>
-            <div style="font-size: 26px; font-weight: 800; color: {dr_badge_col}; margin: 6px 0;">{dr_pct:.2f}%</div>
-            <div style="font-size: 11px; color: #334155; background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">FICO Input: <b>{dr_val:.4f}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
+    ''', unsafe_allow_html=True)
 
     # Đóng gói 11 đặc trưng hoàn chỉnh truyền trực tiếp vào 3 mô hình Machine Learning
     customer_features_payload = {
@@ -1964,139 +1989,179 @@ with active_tabs[0]:
         # ------------------ CỘT 1: CÂY QUYẾT ĐỊNH (DECISION TREE) ------------------
         with col_dt_view:
             st.markdown('''
-            <div style="background: linear-gradient(135deg, #064E3B 0%, #047857 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px;">
-                🌲 CÂY QUYẾT ĐỊNH (DECISION TREE)
-                <span style="font-size: 10px; float: right; background: rgba(255,255,255,0.2); padding: 2px 7px; border-radius: 10px;">White-Box</span>
+            <div style="background: linear-gradient(135deg, #064E3B 0%, #059669 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span>🌲 CÂY QUYẾT ĐỊNH</span>
+                <span style="font-size: 11px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px;">Quy Tắc Rõ Ràng</span>
             </div>
             ''', unsafe_allow_html=True)
             
             if res_dt['dec_code'] == 'APPROVED':
-                st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px; font-size: 13px;">✅ {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px; font-size: 14px;">✅ {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
             elif res_dt['dec_code'] == 'CONDITIONAL':
-                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 13px;">⚠️ {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 14px;">⚠️ {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 13px;">🚫 {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 14px;">🚫 {res_dt["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_dt["reason"]}</div></div>', unsafe_allow_html=True)
 
             fig_gauge_dt = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=res_dt['fico'],
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "FICO SCORE (TREE)", 'font': {'size': 13, 'color': '#0F172A'}},
+                title={'text': "ĐIỂM FICO (CÂY QUYẾT ĐỊNH)", 'font': {'size': 13, 'color': '#1E293B'}},
+                number={'font': {'size': 32, 'color': '#0F172A', 'family': 'Inter, sans-serif'}},
                 gauge={
-                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
-                    'bar': {'color': "#047857", 'thickness': 0.3},
+                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#94A3B8", 'tickvals': [300, 450, 550, 650, 750, 850]},
+                    'bar': {'color': "#059669", 'thickness': 0.28},
+                    'bgcolor': 'white',
+                    'borderwidth': 1,
+                    'bordercolor': '#E2E8F0',
                     'steps': [
-                        {'range': [300, 527], 'color': "#FCA5A5"},
-                        {'range': [527, 571], 'color': "#FDE68A"},
-                        {'range': [571, 600], 'color': "#A7F3D0"},
-                        {'range': [600, 850], 'color': "#34D399"}
-                    ],
-                    'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': res_dt['fico']}
+                        {'range': [300, 540], 'color': '#FCA5A5'},
+                        {'range': [540, 580], 'color': '#FDE68A'},
+                        {'range': [580, 620], 'color': '#BAE6FD'},
+                        {'range': [620, 850], 'color': '#86EFAC'}
+                    ]
                 }
             ))
-            fig_gauge_dt.update_layout(height=210, margin=dict(l=10, r=10, t=25, b=10))
+            fig_gauge_dt.update_layout(height=245, margin=dict(l=20, r=20, t=35, b=15), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_gauge_dt, use_container_width=True)
             
             c_dt1, c_dt2 = st.columns(2)
             with c_dt1:
-                st.markdown(f'<div class="metric-card"><div class="metric-label">Xác suất PD</div><div class="metric-value">{res_dt["pd"]*100:.2f}%</div><div style="font-size: 10px; color: #64748B;">Wilson: {res_dt["wilson"]}</div></div>', unsafe_allow_html=True)
+                col_pd_dt = "#DC2626" if res_dt["pd"] > 0.05 else "#059669"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">XÁC SUẤT NỢ XẤU</div>
+                    <div class="metric-value" style="font-size: 20px; color: {col_pd_dt};">{res_dt["pd"]*100:.2f}%</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_dt["grade"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
             with c_dt2:
-                profit_col_dt = "#10B981" if res_dt['profit_vnd'] >= 0 else "#EF4444"
-                st.markdown(f'<div class="metric-card"><div class="metric-label">Lợi nhuận dự kiến</div><div class="metric-value" style="color: {profit_col_dt}; font-size: 16px;">{res_dt["profit_vnd"]:,.0f} đ</div><div style="font-size: 10px; color: #64748B;">{res_dt["grade"]}</div></div>', unsafe_allow_html=True)
-                
-            st.info(f"""**🌿 Nút lá #{res_dt['leaf_id']} (IF-THEN):**
-
-`IF {res_dt['rule']} THEN PD = {res_dt['pd']*100:.2f}%`""""")
+                profit_col_dt = "#059669" if res_dt['profit_vnd'] >= 0 else "#DC2626"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_dt}; font-size: 16px;">{res_dt["profit_vnd"]:,.0f} đ</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_dt["decision"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
 
         # ------------------ CỘT 2: HỒI QUY LOGISTIC (LOGISTIC REGRESSION) ------------------
         with col_lr_view:
             st.markdown('''
-            <div style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px;">
-                📈 HỒI QUY LOGISTIC (LOGISTIC)
-                <span style="font-size: 10px; float: right; background: rgba(255,255,255,0.2); padding: 2px 7px; border-radius: 10px;">Continuous</span>
+            <div style="background: linear-gradient(135deg, #0F2B5C 0%, #1D4ED8 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span>📈 HỒI QUY LOGISTIC</span>
+                <span style="font-size: 11px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px;">Chuẩn Mực</span>
             </div>
             ''', unsafe_allow_html=True)
             
             if res_lr['dec_code'] == 'APPROVED':
-                st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px; font-size: 13px;">✅ {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-approved" style="border-radius: 0 0 8px 8px; font-size: 14px;">✅ {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
             elif res_lr['dec_code'] == 'CONDITIONAL':
-                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 13px;">⚠️ {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 14px;">⚠️ {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 13px;">🚫 {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 14px;">🚫 {res_lr["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_lr["reason"]}</div></div>', unsafe_allow_html=True)
 
             fig_gauge_lr = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=res_lr['fico'],
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "FICO SCORE (LOGISTIC)", 'font': {'size': 13, 'color': '#0F172A'}},
+                title={'text': "ĐIỂM FICO (HỒI QUY LOGISTIC)", 'font': {'size': 13, 'color': '#1E293B'}},
+                number={'font': {'size': 32, 'color': '#0F172A', 'family': 'Inter, sans-serif'}},
                 gauge={
-                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
-                    'bar': {'color': "#1E3A8A", 'thickness': 0.3},
+                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#94A3B8", 'tickvals': [300, 450, 550, 650, 750, 850]},
+                    'bar': {'color': "#1D4ED8", 'thickness': 0.28},
+                    'bgcolor': 'white',
+                    'borderwidth': 1,
+                    'bordercolor': '#E2E8F0',
                     'steps': [
-                        {'range': [300, 527], 'color': "#FCA5A5"},
-                        {'range': [527, 571], 'color': "#FDE68A"},
-                        {'range': [571, 600], 'color': "#A7F3D0"},
-                        {'range': [600, 850], 'color': "#34D399"}
-                    ],
-                    'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': res_lr['fico']}
+                        {'range': [300, 540], 'color': '#FCA5A5'},
+                        {'range': [540, 580], 'color': '#FDE68A'},
+                        {'range': [580, 620], 'color': '#BAE6FD'},
+                        {'range': [620, 850], 'color': '#86EFAC'}
+                    ]
                 }
             ))
-            fig_gauge_lr.update_layout(height=210, margin=dict(l=10, r=10, t=25, b=10))
+            fig_gauge_lr.update_layout(height=245, margin=dict(l=20, r=20, t=35, b=15), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_gauge_lr, use_container_width=True)
             
             c_lr1, c_lr2 = st.columns(2)
             with c_lr1:
-                st.markdown(f'<div class="metric-card"><div class="metric-label">Xác suất PD</div><div class="metric-value">{res_lr["pd"]*100:.2f}%</div><div style="font-size: 10px; color: #64748B;">Log-odds: {res_lr.get("log_odds", 0):.3f}</div></div>', unsafe_allow_html=True)
+                col_pd_lr = "#DC2626" if res_lr["pd"] > 0.05 else "#059669"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">XÁC SUẤT NỢ XẤU</div>
+                    <div class="metric-value" style="font-size: 20px; color: {col_pd_lr};">{res_lr["pd"]*100:.2f}%</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_lr["grade"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
             with c_lr2:
-                profit_col_lr = "#10B981" if res_lr['profit_vnd'] >= 0 else "#EF4444"
-                st.markdown(f'<div class="metric-card"><div class="metric-label">Lợi nhuận dự kiến</div><div class="metric-value" style="color: {profit_col_lr}; font-size: 16px;">{res_lr["profit_vnd"]:,.0f} đ</div><div style="font-size: 10px; color: #64748B;">{res_lr["grade"]}</div></div>', unsafe_allow_html=True)
-                
-            st.success(f"**⚡ Hàm Logit Liên tục:** FICO nhảy mượt từng USD thu nhập. Nhân tố chi phối: `{res_lr.get('top_driver', 'Thu nhập')}`.")
+                profit_col_lr = "#059669" if res_lr['profit_vnd'] >= 0 else "#DC2626"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_lr}; font-size: 16px;">{res_lr["profit_vnd"]:,.0f} đ</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_lr["decision"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
 
         # ------------------ CỘT 3: XGBOOST (GRADIENT BOOSTING) ------------------
         with col_xgb_view:
             st.markdown('''
-            <div style="background: linear-gradient(135deg, #4C1D95 0%, #7C3AED 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px;">
-                🚀 XGBOOST (GRADIENT BOOSTING)
-                <span style="font-size: 10px; float: right; background: rgba(255,255,255,0.2); padding: 2px 7px; border-radius: 10px;">High Precision</span>
+            <div style="background: linear-gradient(135deg, #3B0764 0%, #7C3AED 100%); color: white; padding: 10px 14px; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span>🚀 AI THÔNG MINH (XGBOOST)</span>
+                <span style="font-size: 11px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px;">Chính Xác Cao</span>
             </div>
             ''', unsafe_allow_html=True)
             
             if res_xgb['dec_code'] == 'APPROVED':
-                st.markdown(f'<div class="decision-approved-xgb" style="border-radius: 0 0 8px 8px; font-size: 13px;">✅ {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-approved-xgb" style="border-radius: 0 0 8px 8px; font-size: 14px;">✅ {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
             elif res_xgb['dec_code'] == 'CONDITIONAL':
-                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 13px;">⚠️ {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-conditional" style="border-radius: 0 0 8px 8px; font-size: 14px;">⚠️ {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 13px;">🚫 {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="decision-rejected" style="border-radius: 0 0 8px 8px; font-size: 14px;">🚫 {res_xgb["decision"]}<div style="font-size: 12px; font-weight: normal; margin-top: 3px;">{res_xgb["reason"]}</div></div>', unsafe_allow_html=True)
 
             fig_gauge_xgb = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=res_xgb['fico'],
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': "FICO SCORE (XGBOOST)", 'font': {'size': 13, 'color': '#0F172A'}},
+                title={'text': "ĐIỂM FICO (XGBOOST)", 'font': {'size': 13, 'color': '#1E293B'}},
+                number={'font': {'size': 32, 'color': '#0F172A', 'family': 'Inter, sans-serif'}},
                 gauge={
-                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
-                    'bar': {'color': "#7C3AED", 'thickness': 0.3},
+                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#94A3B8", 'tickvals': [300, 450, 550, 650, 750, 850]},
+                    'bar': {'color': "#7C3AED", 'thickness': 0.28},
+                    'bgcolor': 'white',
+                    'borderwidth': 1,
+                    'bordercolor': '#E2E8F0',
                     'steps': [
-                        {'range': [300, 527], 'color': "#FCA5A5"},
-                        {'range': [527, 571], 'color': "#FDE68A"},
-                        {'range': [571, 600], 'color': "#A7F3D0"},
-                        {'range': [600, 850], 'color': "#34D399"}
-                    ],
-                    'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': res_xgb['fico']}
+                        {'range': [300, 540], 'color': '#FCA5A5'},
+                        {'range': [540, 580], 'color': '#FDE68A'},
+                        {'range': [580, 620], 'color': '#BAE6FD'},
+                        {'range': [620, 850], 'color': '#86EFAC'}
+                    ]
                 }
             ))
-            fig_gauge_xgb.update_layout(height=210, margin=dict(l=10, r=10, t=25, b=10))
+            fig_gauge_xgb.update_layout(height=245, margin=dict(l=20, r=20, t=35, b=15), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_gauge_xgb, use_container_width=True)
             
             c_xgb1, c_xgb2 = st.columns(2)
             with c_xgb1:
-                st.markdown(f'<div class="metric-card-xgb"><div class="metric-label">Xác suất PD</div><div class="metric-value">{res_xgb["pd"]*100:.2f}%</div><div style="font-size: 10px; color: #64748B;">AUC: 0.8681 | KS: 58.1%</div></div>', unsafe_allow_html=True)
+                col_pd_xgb = "#DC2626" if res_xgb["pd"] > 0.05 else "#059669"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">XÁC SUẤT NỢ XẤU</div>
+                    <div class="metric-value" style="font-size: 20px; color: {col_pd_xgb};">{res_xgb["pd"]*100:.2f}%</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_xgb["grade"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
             with c_xgb2:
-                profit_col_xgb = "#10B981" if res_xgb['profit_vnd'] >= 0 else "#EF4444"
-                st.markdown(f'<div class="metric-card-xgb"><div class="metric-label">Lợi nhuận dự kiến</div><div class="metric-value" style="color: {profit_col_xgb}; font-size: 16px;">{res_xgb["profit_vnd"]:,.0f} đ</div><div style="font-size: 10px; color: #64748B;">{res_xgb["grade"]}</div></div>', unsafe_allow_html=True)
-                
-            st.markdown(f'<div style="background: #F5F3FF; border: 1px solid #DDD6FE; border-radius: 8px; padding: 9px; font-size: 12px; color: #5B21B6;"><b>🚀 Ensemble Boosting:</b> Độ chính xác cao nhất. Trọng số SHAP hàng đầu: <b>{res_xgb.get("top_driver", "Đòn bẩy & Quá hạn")}</b>.</div>', unsafe_allow_html=True)
+                profit_col_xgb = "#059669" if res_xgb['profit_vnd'] >= 0 else "#DC2626"
+                st.markdown(f'''
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
+                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_xgb}; font-size: 16px;">{res_xgb["profit_vnd"]:,.0f} đ</div>
+                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_xgb["decision"]}</div>
+                </div>
+                ''', unsafe_allow_html=True)
 
         # ------------------ PANEL ĐỐI SÁNH & TRỌNG TÀI RỦI RO 3 MÔ HÌNH ------------------
         st.markdown('<div class="reconciliation-box">', unsafe_allow_html=True)
@@ -2161,20 +2226,23 @@ with active_tabs[0]:
                 mode="gauge+number",
                 value=active_res['fico'],
                 domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': f"FICO ({active_res['grade']})", 'font': {'size': 15, 'color': '#0F172A'}},
+                title={'text': f"ĐIỂM FICO ({active_res['grade']})", 'font': {'size': 14, 'color': '#1E293B'}},
+                number={'font': {'size': 34, 'color': '#0F172A', 'family': 'Inter, sans-serif'}},
                 gauge={
-                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#475569"},
-                    'bar': {'color': bar_color, 'thickness': 0.3},
+                    'axis': {'range': [300, 850], 'tickwidth': 1, 'tickcolor': "#94A3B8", 'tickvals': [300, 450, 550, 650, 750, 850]},
+                    'bar': {'color': bar_color, 'thickness': 0.28},
+                    'bgcolor': 'white',
+                    'borderwidth': 1,
+                    'bordercolor': '#E2E8F0',
                     'steps': [
-                        {'range': [300, 527], 'color': "#FCA5A5"},
-                        {'range': [527, 571], 'color': "#FDE68A"},
-                        {'range': [571, 600], 'color': "#A7F3D0"},
-                        {'range': [600, 850], 'color': "#34D399"}
-                    ],
-                    'threshold': {'line': {'color': "black", 'width': 4}, 'thickness': 0.75, 'value': active_res['fico']}
+                        {'range': [300, 540], 'color': '#FCA5A5'},
+                        {'range': [540, 580], 'color': '#FDE68A'},
+                        {'range': [580, 620], 'color': '#BAE6FD'},
+                        {'range': [620, 850], 'color': '#86EFAC'}
+                    ]
                 }
             ))
-            fig_g_single.update_layout(height=230, margin=dict(l=15, r=15, t=30, b=10))
+            fig_g_single.update_layout(height=245, margin=dict(l=20, r=20, t=35, b=15), paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_g_single, use_container_width=True)
             st.markdown('</div>', unsafe_allow_html=True)
             
@@ -2261,6 +2329,7 @@ if 'batch' in user['allowed_tabs']:
             ])
             sample_csv = sample_df.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Tải Template Mẫu (.CSV)", data=sample_csv, file_name="Mau_Danh_Sach_Ho_So_Tin_Dung.csv", mime="text/csv", use_container_width=True)
+            st.caption("💡 **Cột Loan_Amount_VND trong file mẫu:** Là số tiền đề nghị vay (VND). Hệ thống dùng số tiền này để tính Lợi nhuận dự kiến và Hạn mức phê duyệt tối đa cho từng hồ sơ. Nếu file của bạn không có cột này, hệ thống sẽ tự động áp dụng số tiền mặc định đang chọn ở thanh bên trái.")
             
         if uploaded_file is not None:
             try:
@@ -2356,8 +2425,7 @@ if 'policy' in user['allowed_tabs']:
             st.markdown('</div>', unsafe_allow_html=True)
             
         with col_pol2:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown(f"##### 📈 So Sánh Trực Tiếp Đường Cong Lợi Nhuận Kỳ Vọng ({dt_cfg[sel_pol_prod]['product_name']})")
+            st.markdown(f"##### 📈 So Sánh Đường Cong Lợi Nhuận Kỳ Vọng ({dt_cfg[sel_pol_prod]['product_name']})")
             
             test_ficos = np.linspace(420, 680, 60)
             
@@ -2382,31 +2450,35 @@ if 'policy' in user['allowed_tabs']:
             fig_compare_curve = go.Figure()
             fig_compare_curve.add_trace(go.Scatter(
                 x=test_ficos, y=profits_dt * 100,
-                mode='lines', name='🌲 Decision Tree (Bậc Thang Phân Vị)',
-                line=dict(color='#047857', width=2.5, dash='solid')
+                mode='lines', name='🌲 Decision Tree (Bậc Thang)',
+                line=dict(color='#059669', width=2.5, dash='solid')
             ))
             fig_compare_curve.add_trace(go.Scatter(
                 x=test_ficos, y=profits_lr * 100,
-                mode='lines', name='📈 Logistic Regression (Đường Cong Mượt)',
-                line=dict(color='#2563EB', width=2.5, dash='solid')
+                mode='lines', name='📈 Logistic Regression (Mượt Mà)',
+                line=dict(color='#1D4ED8', width=2.5, dash='solid')
             ))
             fig_compare_curve.add_trace(go.Scatter(
                 x=test_ficos, y=profits_xgb * 100,
-                mode='lines', name='🚀 XGBoost (Độ Phân Tách Biên Cực Đại)',
+                mode='lines', name='🚀 XGBoost (Tối Ưu Biên)',
                 line=dict(color='#7C3AED', width=3, dash='solid')
             ))
-            fig_compare_curve.add_hline(y=0, line_dash="dash", line_color="black", annotation_text="Điểm Hòa Vốn (0%)")
+            fig_compare_curve.add_hline(y=0, line_dash="dash", line_color="#DC2626", annotation_text="Điểm Hòa Vốn (0%)", annotation_position="bottom right")
             fig_compare_curve.update_layout(
-                title=f"Đối Sánh Biên Lợi Nhuận (%) Theo Ngưỡng FICO Cut-off",
-                xaxis_title="Ngưỡng Điểm Cắt FICO (Cut-off Score)",
-                yaxis_title="Biên Lợi Nhuận Ròng (%)",
-                height=320,
-                margin=dict(l=20, r=20, t=40, b=20),
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                title=dict(
+                    text=f"Biên Lợi Nhuận Kỳ Vọng (%) Theo Ngưỡng FICO ({dt_cfg[sel_pol_prod]['product_name']})",
+                    font=dict(size=14, color='#0F2347')
+                ),
+                xaxis=dict(title="Ngưỡng Điểm Cắt FICO (Cut-off Score)", gridcolor="#E2E8F0"),
+                yaxis=dict(title="Biên Lợi Nhuận Ròng (%)", gridcolor="#E2E8F0"),
+                paper_bgcolor='white',
+                plot_bgcolor='#F8FAFC',
+                height=390,
+                margin=dict(l=45, r=25, t=50, b=65),
+                legend=dict(orientation="h", y=-0.28, x=0.5, xanchor="center")
             )
             st.plotly_chart(fig_compare_curve, use_container_width=True)
-            st.caption("Khảo sát đối sánh: XGBoost đạt độ dốc biên lợi nhuận cao nhất xung quanh điểm hòa vốn, cho phép phê duyệt an toàn hơn 12-15% danh mục.")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.caption("💡 **Nhận xét chính sách:** XGBoost đạt biên lợi nhuận cao nhất và phân tách rủi ro sắc nét nhất xung quanh điểm hòa vốn, giúp ngân hàng mở rộng tệp phê duyệt an toàn.")
             
         st.markdown("##### 🏆 Bảng Đối Sánh Ngưỡng Cắt Tối Ưu Hóa Lợi Nhuận Giữa 3 Mô Hình (Optimal Cut-offs)")
         opt_data = [
@@ -2435,16 +2507,15 @@ if 'audit' in user['allowed_tabs']:
         col_aud1, col_aud2 = st.columns(2)
         
         with col_aud1:
-            st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-            st.markdown("##### 🎯 Biểu Đồ Radar So Sánh Năng Lực 6 Chiều Kiểm Toán Basel II")
+            st.markdown("##### 🎯 Biểu Đồ Radar So Sánh Năng Lực 6 Tiêu Chí Giám Sát Basel II")
             
             categories = [
-                '1. Phân Tách (AUC/KS)',
-                '2. Giải Trình (White-Box)',
-                '3. Độ Mịn Điểm (Granularity)',
-                '4. Ổn Định (Low PSI)',
-                '5. Chuẩn Hóa PD (Brier/ECE)',
-                '6. Chống Quá Khớp (Low Drop)'
+                '1. Phân Tách Rủi Ro',
+                '2. Minh Bạch Giải Trình',
+                '3. Độ Mịn Điểm FICO',
+                '4. Ổn Định Dân Số',
+                '5. Chuẩn Xác Xác Suất',
+                '6. Khả Năng Khái Quát'
             ]
             fig_radar = go.Figure()
             fig_radar.add_trace(go.Scatterpolar(
@@ -2452,14 +2523,14 @@ if 'audit' in user['allowed_tabs']:
                 theta=categories,
                 fill='toself',
                 name='🌲 Decision Tree',
-                line_color='#047857'
+                line_color='#059669'
             ))
             fig_radar.add_trace(go.Scatterpolar(
                 r=[0.856, 0.880, 0.960, 0.970, 0.910, 0.995],
                 theta=categories,
                 fill='toself',
                 name='📈 Logistic Regression',
-                line_color='#2563EB'
+                line_color='#1D4ED8'
             ))
             fig_radar.add_trace(go.Scatterpolar(
                 r=[0.868, 0.750, 0.995, 0.985, 0.966, 0.943],
@@ -2469,14 +2540,18 @@ if 'audit' in user['allowed_tabs']:
                 line_color='#7C3AED'
             ))
             fig_radar.update_layout(
-                polar=dict(radialaxis=dict(visible=True, range=[0.5, 1.0])),
+                polar=dict(
+                    radialaxis=dict(visible=True, range=[0.5, 1.0], gridcolor="#E2E8F0"),
+                    bgcolor="#F8FAFC"
+                ),
                 showlegend=True,
-                height=330,
-                margin=dict(l=20, r=20, t=20, b=20)
+                height=360,
+                margin=dict(l=30, r=30, t=30, b=30),
+                paper_bgcolor='white',
+                legend=dict(orientation="h", y=-0.15, x=0.5, xanchor="center")
             )
             st.plotly_chart(fig_radar, use_container_width=True)
-            st.caption("Nhận xét kiểm toán: Decision Tree chiến thắng về tính minh bạch giải trình (White-box); Logistic chiếm ưu thế về tính chuẩn tắc tài chính; XGBoost chiếm ưu thế tuyệt đối về lực phân tách và độ chuẩn hóa xác suất.")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.caption("💡 **Nhận xét giám sát Basel II:** Decision Tree tối ưu về tính trực quan rõ ràng; Logistic đảm bảo tính liên tục truyền thống; XGBoost dẫn đầu về năng lực phân tách nợ xấu và độ chuẩn hóa xác suất.")
             
         with col_aud2:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
