@@ -130,64 +130,142 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Kỹ thuật Smooth Scrolling (Lenis Engine & CSS Scroll Behavior)
+# Kỹ thuật Smooth Scrolling chuẩn Fintech (Lenis Smooth Scroll Engine & CSS Scroll Behavior)
 st.components.v1.html("""
-<script src="https://cdn.jsdelivr.net/npm/lenis@1.0.45/dist/lenis.min.js"></script>
 <script>
-    try {
-        const lenis = new Lenis({
-            duration: 1.2,
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-            direction: 'vertical',
-            smooth: true,
-            smoothTouch: false
-        });
-        function raf(time) {
-            lenis.raf(time);
-            requestAnimationFrame(raf);
+(function() {
+    function setupSmoothScroll() {
+        try {
+            const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+            const pWin = (window.parent && window.parent.window) ? window.parent.window : window;
+            
+            // 1. Áp dụng CSS Smooth Scroll trực tiếp lên các container chính
+            pDoc.documentElement.style.scrollBehavior = 'smooth';
+            if (pDoc.body) pDoc.body.style.scrollBehavior = 'smooth';
+            
+            const mainContainer = pDoc.querySelector('[data-testid="stAppViewContainer"]') || pDoc.documentElement;
+            if (mainContainer) {
+                mainContainer.style.scrollBehavior = 'smooth';
+            }
+
+            // 2. Tải và kích hoạt Lenis Smooth Scroll Engine vào cửa sổ ứng dụng
+            if (!pWin.__lenis_initialized) {
+                pWin.__lenis_initialized = true;
+                const script = pDoc.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/lenis@1.0.45/dist/lenis.min.js';
+                script.async = true;
+                script.onload = function() {
+                    try {
+                        const lenis = new pWin.Lenis({
+                            wrapper: mainContainer,
+                            content: mainContainer.querySelector('.main') || mainContainer,
+                            duration: 1.2,
+                            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+                            smoothWheel: true,
+                            smoothTouch: false
+                        });
+                        function raf(time) {
+                            lenis.raf(time);
+                            pWin.requestAnimationFrame(raf);
+                        }
+                        pWin.requestAnimationFrame(raf);
+                        console.log("✓ Lenis Smooth Scroll Engine successfully attached to Streamlit!");
+                    } catch(err) {
+                        console.log("Lenis initialization inside parent:", err);
+                    }
+                };
+                pDoc.head.appendChild(script);
+            }
+        } catch(e) {
+            console.log("Smooth scroll setup notice:", e);
         }
-        requestAnimationFrame(raf);
-    } catch(e) {
-        console.log("Lenis Smooth Scroll Initialized", e);
     }
+    setTimeout(setupSmoothScroll, 200);
+})();
 </script>
 """, height=0, width=0)
 
 # Custom CSS phong cách Báo cáo thường niên Ngân hàng cao cấp (HDBank inspired)
 st.markdown("""
 <style>
-    /* SMOOTH SCROLLING - CUỘN TRANG MƯỢT MÀ CHUẨN UX HIỆN ĐẠI */
-    html {
-        scroll-behavior: smooth !important;
-    }
-    body, [data-testid="stAppViewContainer"], .main {
+    /* =========================================================================
+       1. SMOOTH SCROLLING - CUỘN TRANG MƯỢT MÀ CHUẨN UX HIỆN ĐẠI
+       ========================================================================= */
+    html, body, [data-testid="stAppViewContainer"], .main, section.main {
         scroll-behavior: smooth !important;
     }
 
-    /* ĐỒNG BỘ KÍCH THƯỚC VÀ CĂN HÀNG NGANG BẰNG CÁC Ô NHẬP LIỆU (BALANCED INPUT GRIDS) */
+    /* =========================================================================
+       2. BALANCED INPUT GRIDS: ĐỒNG BỘ KÍCH THƯỚC & CĂN THẲNG ĐÁY NHÃN TIÊU ĐỀ
+       ========================================================================= */
+    div[data-testid="stWidgetLabel"],
+    div[data-testid="stWidgetLabel"] label,
+    div[data-testid="stWidgetLabel"] > div,
     div[data-testid="stNumberInput"] label,
     div[data-testid="stTextInput"] label,
     div[data-testid="stSelectbox"] label,
     div[data-testid="stDateInput"] label {
-        min-height: 26px !important;
+        min-height: 28px !important;
+        height: auto !important;
         font-weight: 700 !important;
-        color: #1E293B !important;
+        color: #0F172A !important;
         display: flex !important;
         align-items: flex-end !important;
-        margin-bottom: 5px !important;
+        margin-bottom: 6px !important;
+        line-height: 1.35 !important;
     }
+    div[data-testid="stWidgetLabel"] p,
+    div[data-testid="stMarkdownContainer"] p {
+        margin-bottom: 0 !important;
+        font-size: 13.5px !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+    }
+
+    /* CHUẨN HÓA CHIỀU CAO CÔNG THÁI HỌC 44PX, BO GÓC 8PX, VIỀN XÁM SÁNG #D6E4F0 */
+    div[data-baseweb="input"],
+    div[data-baseweb="base-input"],
+    div[data-baseweb="select"] > div,
     div[data-testid="stTextInput"] > div > div,
     div[data-testid="stNumberInput"] > div > div,
     div[data-testid="stSelectbox"] > div > div,
     div[data-testid="stDateInput"] > div > div {
         min-height: 44px !important;
+        height: 44px !important;
         border-radius: 8px !important;
+        border: 1.5px solid #D6E4F0 !important;
+        background-color: #FFFFFF !important;
+        box-sizing: border-box !important;
+        transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     }
+
+    /* HIỆU ỨNG FOCUS KHI CLICK CHUỘT VÀO: ĐỔI SANG MÀU XANH NGÂN HÀNG #2563EB & ĐỔ BÓNG HÀO QUANG */
+    div[data-baseweb="input"]:focus-within,
+    div[data-baseweb="select"] > div:focus-within,
+    div[data-testid="stTextInput"] > div > div:focus-within,
+    div[data-testid="stNumberInput"] > div > div:focus-within,
+    div[data-testid="stSelectbox"] > div > div:focus-within,
+    div[data-testid="stDateInput"] > div > div:focus-within {
+        border-color: #2563EB !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2) !important;
+    }
+    div[data-baseweb="input"]:hover,
+    div[data-baseweb="select"] > div:hover {
+        border-color: #93C5FD !important;
+    }
+
+    /* TEXT VÀ SỐ LIỆU BÊN TRONG Ô NHẬP */
+    div[data-baseweb="input"] input,
     div[data-testid="stTextInput"] input,
     div[data-testid="stNumberInput"] input {
-        height: 42px !important;
+        height: 40px !important;
+        min-height: 40px !important;
         font-size: 14.5px !important;
+        font-weight: 600 !important;
+        color: #0F172A !important;
         border-radius: 8px !important;
+        background: transparent !important;
+        padding: 0 12px !important;
     }
 
     /* NỀN TẢNG THIẾT KẾ: FINTECH BANKING BLUE PALETTE HIỆN ĐẠI & SANG TRỌNG */
