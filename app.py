@@ -130,25 +130,54 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Kỹ thuật Smooth Scrolling chuẩn Fintech (Lenis Smooth Scroll Engine & CSS Scroll Behavior)
+# Kỹ thuật Visual Website: Scroll Reveal (Fade In & Slide Up qua Intersection Observer & View Timeline)
 st.components.v1.html("""
 <script>
 (function() {
-    function setupSmoothScroll() {
+    function setupVisualEffects() {
         try {
             const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
             const pWin = (window.parent && window.parent.window) ? window.parent.window : window;
             
-            // 1. Áp dụng CSS Smooth Scroll trực tiếp lên các container chính
+            // 1. Kích hoạt Smooth Scrolling
             pDoc.documentElement.style.scrollBehavior = 'smooth';
             if (pDoc.body) pDoc.body.style.scrollBehavior = 'smooth';
-            
             const mainContainer = pDoc.querySelector('[data-testid="stAppViewContainer"]') || pDoc.documentElement;
             if (mainContainer) {
                 mainContainer.style.scrollBehavior = 'smooth';
             }
 
-            // 2. Tải và kích hoạt Lenis Smooth Scroll Engine vào cửa sổ ứng dụng
+            // 2. Kích hoạt Scroll Reveal bằng Intersection Observer (Fade In & Slide Up)
+            const targets = pDoc.querySelectorAll('.hdb-card, .metric-card, .summary-strip, .hdb-section-header, .reconciliation-box, [data-testid="stExpander"], [data-testid="stMetric"]');
+            
+            if ('IntersectionObserver' in pWin) {
+                const observer = new pWin.IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('scroll-revealed');
+                        }
+                    });
+                }, {
+                    root: mainContainer === pDoc.documentElement ? null : mainContainer,
+                    rootMargin: '0px 0px -40px 0px',
+                    threshold: 0.08
+                });
+
+                targets.forEach(el => {
+                    // Nếu đã nằm trong tầm nhìn lúc mới tải trang thì hiện ngay lập tức
+                    const rect = el.getBoundingClientRect();
+                    if (rect.top < pWin.innerHeight && rect.bottom > 0) {
+                        el.classList.add('scroll-revealed');
+                    } else {
+                        el.classList.add('scroll-reveal-item');
+                    }
+                    observer.observe(el);
+                });
+            } else {
+                targets.forEach(el => el.classList.add('scroll-revealed'));
+            }
+
+            // 3. Khởi tạo Lenis Smooth Scroll Engine
             if (!pWin.__lenis_initialized) {
                 pWin.__lenis_initialized = true;
                 const script = pDoc.createElement('script');
@@ -169,18 +198,17 @@ st.components.v1.html("""
                             pWin.requestAnimationFrame(raf);
                         }
                         pWin.requestAnimationFrame(raf);
-                        console.log("✓ Lenis Smooth Scroll Engine successfully attached to Streamlit!");
                     } catch(err) {
-                        console.log("Lenis initialization inside parent:", err);
+                        console.log("Lenis init:", err);
                     }
                 };
                 pDoc.head.appendChild(script);
             }
         } catch(e) {
-            console.log("Smooth scroll setup notice:", e);
+            console.log("Visual setup error:", e);
         }
     }
-    setTimeout(setupSmoothScroll, 200);
+    setTimeout(setupVisualEffects, 300);
 })();
 </script>
 """, height=0, width=0)
@@ -189,14 +217,88 @@ st.components.v1.html("""
 st.markdown("""
 <style>
     /* =========================================================================
-       1. SMOOTH SCROLLING - CUỘN TRANG MƯỢT MÀ CHUẨN UX HIỆN ĐẠI
+       1. SCROLL REVEAL (FADE IN & SLIDE UP) & SMOOTH SCROLLING
        ========================================================================= */
     html, body, [data-testid="stAppViewContainer"], .main, section.main {
         scroll-behavior: smooth !important;
     }
 
+    /* Hiệu ứng Fade In và Slide Up khi cuộn */
+    @keyframes scrollRevealKeyframe {
+        from {
+            opacity: 0;
+            transform: translateY(32px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Hỗ trợ CSS View Timeline hiện đại */
+    @supports (animation-timeline: view()) {
+        .scroll-reveal-item {
+            animation: scrollRevealKeyframe 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+            animation-timeline: view();
+            animation-range: entry 10% cover 30%;
+        }
+    }
+
+    /* Fallback mượt mà qua Intersection Observer */
+    .scroll-reveal-item {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        will-change: opacity, transform;
+    }
+    .scroll-reveal-item.scroll-revealed,
+    .scroll-revealed {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+    }
+
     /* =========================================================================
-       2. BALANCED INPUT GRIDS: ĐỒNG BỘ KÍCH THƯỚC & CĂN THẲNG ĐÁY NHÃN TIÊU ĐỀ
+       2. TAB NAVIGATION BAR: TƯƠNG PHẢN CAO, CHỮ TRẮNG NỔI BẬT TRÊN TAB CHỌN
+       ========================================================================= */
+    button[data-baseweb="tab"] {
+        background-color: #F8FAFC !important;
+        border: 1.5px solid #E2E8F0 !important;
+        border-radius: 8px 8px 0 0 !important;
+        padding: 10px 18px !important;
+        margin-right: 6px !important;
+        transition: all 0.2s ease !important;
+    }
+    button[data-baseweb="tab"] p,
+    button[data-baseweb="tab"] span,
+    button[data-baseweb="tab"] div {
+        color: #334155 !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+    }
+    button[data-baseweb="tab"]:hover {
+        background-color: #EFF6FF !important;
+        border-color: #93C5FD !important;
+    }
+    button[data-baseweb="tab"]:hover p {
+        color: #1D4ED8 !important;
+    }
+
+    /* TAB ĐANG ĐƯỢC CHỌN (ACTIVE TAB): NỀN XANH ĐẬM - CHỮ TRẮNG TINH KHÔI SẮC NÉT */
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%) !important;
+        border-color: #1E3A8A !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] p,
+    button[data-baseweb="tab"][aria-selected="true"] span,
+    button[data-baseweb="tab"][aria-selected="true"] div {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        font-size: 15px !important;
+    }
+
+    /* =========================================================================
+       3. BALANCED INPUT GRIDS: ĐỒNG BỘ KÍCH THƯỚC & CĂN THẲNG ĐÁY NHÃN TIÊU ĐỀ
        ========================================================================= */
     div[data-testid="stWidgetLabel"],
     div[data-testid="stWidgetLabel"] label,
@@ -214,8 +316,7 @@ st.markdown("""
         margin-bottom: 6px !important;
         line-height: 1.35 !important;
     }
-    div[data-testid="stWidgetLabel"] p,
-    div[data-testid="stMarkdownContainer"] p {
+    div[data-testid="stWidgetLabel"] p {
         margin-bottom: 0 !important;
         font-size: 13.5px !important;
         font-weight: 700 !important;
@@ -309,16 +410,21 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
     .main-header h1 {
-        color: white !important;
+        color: #FFFFFF !important;
         margin: 0 !important;
-        font-size: 26px !important;
+        font-size: 27px !important;
         font-weight: 800 !important;
         letter-spacing: -0.5px !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
     }
-    .main-header p {
-        color: #BAE6FD !important;
+    .main-header p,
+    .main-header div p,
+    div[data-testid="stMarkdownContainer"] .main-header p {
+        color: #E0F2FE !important;
         margin: 6px 0 0 0 !important;
         font-size: 15px !important;
+        font-weight: 600 !important;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
     }
     
     /* Thẻ Card trắng nổi bật với viền xanh mỏng tinh tế */
@@ -1644,8 +1750,8 @@ st.markdown(f"""
 <div class="main-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1>SmartCredit Banking AI Portal</h1>
-            <p>Hệ thống Thẩm định & Quản trị Rủi ro Tín dụng Đa Mô hình theo Chuẩn Basel II Trụ cột 1-2 & IFRS 9</p>
+            <h1 style="color: #FFFFFF !important; margin: 0; font-size: 27px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">SmartCredit Banking AI Portal</h1>
+            <p style="color: #E0F2FE !important; margin: 6px 0 0 0; font-size: 15px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.25);">Hệ thống Thẩm định & Quản trị Rủi ro Tín dụng Đa Mô hình theo Chuẩn Basel II Trụ cột 1-2 & IFRS 9</p>
         </div>
         <div style="text-align: right;">
             <div style="font-size: 11px; background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; display: inline-block;">
@@ -2222,10 +2328,12 @@ with active_tabs[0]:
     with col_c7_1:
         st.markdown(f'''
         <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 145px;">
-            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.3px;">TỔNG HỢP ĐỒNG TÍN DỤNG ĐANG MỞ (KHOẢN VAY + THẺ)</div>
-            <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 15px; font-weight: 600; color: #64748B;">hợp đồng tín dụng</span></div>
-            <div style="font-size: 13px; color: #475569; line-height: 1.45;">
-                ✓ Biến <b>NumberOfOpenCreditLinesAndLoans</b>: Gồm <b>{len(open_cards)}</b> thẻ tín dụng/thấu chi (Mục 04) + <b>{len(open_loans)}</b> khoản vay trả góp/thế chấp (Mục 05) đang hoạt động theo báo cáo CIC.
+            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.3px;">TỔNG SỐ HỢP ĐỒNG TÍN DỤNG CIC (GỒM THẺ MỤC 04 + VAY MỤC 05)</div>
+            <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 14.5px; font-weight: 600; color: #64748B;">hợp đồng đang mở</span></div>
+            <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+                • <b>Số thẻ tín dụng / hạn mức thấu chi (Mục 04):</b> <b style="color: #1D4ED8;">{len(open_cards)}</b> thẻ<br/>
+                • <b>Số khoản nợ vay trả góp / thế chấp (Mục 05):</b> <b style="color: #059669;">{len(open_loans)}</b> khoản<br/>
+                <span style="font-size: 12px; color: #64748B;">📌 <i>Biến <b>NumberOfOpenCreditLinesAndLoans</b> tính gộp cả 2 mục theo chuẩn Data Dictionary.</i></span>
             </div>
         </div>
         ''', unsafe_allow_html=True)
