@@ -10,6 +10,7 @@ import io
 import json
 import joblib
 import datetime
+import math
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -209,6 +210,13 @@ st.components.v1.html("""
         }
     }
     setTimeout(setupVisualEffects, 300);
+    // Fallback bảo đảm 100% phần tử luôn hiển thị sau 1s, tránh trường hợp observer bị chặn
+    setTimeout(function() {
+        try {
+            const pDoc = (window.parent && window.parent.document) ? window.parent.document : document;
+            pDoc.querySelectorAll('.scroll-reveal-item').forEach(el => el.classList.add('scroll-revealed'));
+        } catch(e) {}
+    }, 1000);
 })();
 </script>
 """, height=0, width=0)
@@ -260,18 +268,18 @@ st.markdown("""
     /* =========================================================================
        2. TAB NAVIGATION BAR: TƯƠNG PHẢN CAO, CHỮ TRẮNG NỔI BẬT TRÊN TAB CHỌN
        ========================================================================= */
+        /* TAB CHƯA CHỌN (INACTIVE TAB) */
     button[data-baseweb="tab"] {
         background-color: #F8FAFC !important;
-        border: 1.5px solid #E2E8F0 !important;
+        border: 1.5px solid #CBD5E1 !important;
         border-radius: 8px 8px 0 0 !important;
         padding: 10px 18px !important;
         margin-right: 6px !important;
         transition: all 0.2s ease !important;
     }
-    button[data-baseweb="tab"] p,
-    button[data-baseweb="tab"] span,
-    button[data-baseweb="tab"] div {
-        color: #334155 !important;
+    button[data-baseweb="tab"] * {
+        color: #1E293B !important;
+        -webkit-text-fill-color: #1E293B !important;
         font-size: 15px !important;
         font-weight: 700 !important;
     }
@@ -279,20 +287,20 @@ st.markdown("""
         background-color: #EFF6FF !important;
         border-color: #93C5FD !important;
     }
-    button[data-baseweb="tab"]:hover p {
+    button[data-baseweb="tab"]:hover * {
         color: #1D4ED8 !important;
+        -webkit-text-fill-color: #1D4ED8 !important;
     }
 
-    /* TAB ĐANG ĐƯỢC CHỌN (ACTIVE TAB): NỀN XANH ĐẬM - CHỮ TRẮNG TINH KHÔI SẮC NÉT */
+    /* TAB ĐANG ĐƯỢC CHỌN (ACTIVE TAB): NỀN XANH ĐẬM - CHỮ TRẮNG TINH KHÔI SẮC NÉT HOÀN TOÀN */
     button[data-baseweb="tab"][aria-selected="true"] {
         background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%) !important;
         border-color: #1E3A8A !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3) !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
     }
-    button[data-baseweb="tab"][aria-selected="true"] p,
-    button[data-baseweb="tab"][aria-selected="true"] span,
-    button[data-baseweb="tab"][aria-selected="true"] div {
+    button[data-baseweb="tab"][aria-selected="true"] * {
         color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         font-weight: 800 !important;
         font-size: 15px !important;
     }
@@ -399,32 +407,43 @@ st.markdown("""
         border-right: 1px solid #D6E4F0 !important;
     }
     
-    /* Header chính màu xanh dương quyền uy */
+    /* Header chính màu xanh dương quyền uy - TƯƠNG PHẢN CAO TUYỆT ĐỐI */
     .main-header {
         background: linear-gradient(135deg, #0A2540 0%, #153E75 45%, #1D4ED8 100%) !important;
-        color: white !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         padding: 26px 32px !important;
         border-radius: 14px !important;
         margin-bottom: 22px !important;
-        box-shadow: 0 8px 25px rgba(10, 37, 64, 0.18) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 8px 25px rgba(10, 37, 64, 0.25) !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
     }
-    .main-header h1 {
+    .main-header h1,
+    .main-header h1 *,
+    div[data-testid="stMarkdownContainer"] .main-header h1 {
         color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         margin: 0 !important;
         font-size: 27px !important;
         font-weight: 800 !important;
         letter-spacing: -0.5px !important;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
     }
     .main-header p,
-    .main-header div p,
-    div[data-testid="stMarkdownContainer"] .main-header p {
+    .main-header div,
+    .main-header span,
+    .main-header *,
+    div[data-testid="stMarkdownContainer"] .main-header * {
+        color: #F0F9FF !important;
+        -webkit-text-fill-color: #F0F9FF !important;
+    }
+    .sub-header-desc {
         color: #E0F2FE !important;
+        -webkit-text-fill-color: #E0F2FE !important;
         margin: 6px 0 0 0 !important;
         font-size: 15px !important;
         font-weight: 600 !important;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25) !important;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
     }
     
     /* Thẻ Card trắng nổi bật với viền xanh mỏng tinh tế */
@@ -1078,11 +1097,46 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
     
-    # CHÍNH SÁCH 3 VÙNG (3-ZONE ADAPTIVE RISK POLICY)
-    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
-    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    # BỘ QUY TẮC CHẶN CỨNG NGHIỆP VỤ (BUSINESS KNOCK-OUT RULES)
+    knockout_triggered = False
+    knockout_reasons = []
     
-    if is_green:
+    # Rule 1: CIC Anomaly / Extreme Delinquency (96/98 or past due >= 96)
+    has_96_98 = (data_dict.get('Has_Code_96_98', 0) == 1) or any(
+        float(data_dict.get(c, 0)) >= 96 for c in ['NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse', 'NumberOfTime30-59DaysPastDueNotWorse']
+    )
+    if has_96_98:
+        knockout_triggered = True
+        knockout_reasons.append("🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 1): Khách hàng có mã lỗi bất thường hoặc nợ quá hạn nghiêm trọng (mã CIC 96/98). Buộc từ chối tự động (VÙNG ĐỎ) theo chuẩn an toàn hệ thống.")
+
+    # Rule 2: DebtRatio >= 1.0 (Nghĩa vụ nợ & sinh hoạt >= 100% thu nhập)
+    dr_raw = float(data_dict.get('DebtRatio', 0.0))
+    if dr_raw >= 1.0:
+        knockout_triggered = True
+        knockout_reasons.append(f"🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 2): Tỷ lệ nghĩa vụ nợ & sinh hoạt vượt quá thu nhập (DebtRatio = {dr_raw*100:.1f}% >= 100%). Buộc từ chối tự động (VÙNG ĐỎ) do mất khả năng thanh toán dòng tiền.")
+
+    # Rule 3: 0.70 <= DebtRatio < 1.0 (Giới hạn trần Vùng Xanh)
+    restrict_grey = False
+    if 0.70 <= dr_raw < 1.0:
+        restrict_grey = True
+        knockout_reasons.append(f"⚠️ QUY TẮC GIỚI HẠN CHÍNH SÁCH (RULE 3): DebtRatio cao ({dr_raw*100:.1f}% nằm trong khoảng [70%, 100%)), chặn phê duyệt thẳng Vùng Xanh, chuyển sang VÙNG XÁM (Tái thẩm định có điều kiện).")
+
+    # CHÍNH SÁCH 3 VÙNG (3-ZONE ADAPTIVE RISK POLICY)
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0) and (not restrict_grey) and (not knockout_triggered)
+    is_grey = (not knockout_triggered) and (
+        (restrict_grey and fico >= 500) or
+        ((not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500))
+    )
+    
+    if knockout_triggered:
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - QUY TẮC CHẶN CỨNG)'
+        dec_code = 'REJECTED'
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = " | ".join(knockout_reasons)
+    elif is_green:
         zone = 'GREEN'
         decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
@@ -1095,13 +1149,15 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
         decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
         ead_final = loan_amt * 0.70  # Giảm 30% hạn mức rủi ro
-        r_grey = 0.17  # Biên lãi suất rủi ro
-        c_fund = 0.04
-        net_r_grey = r_grey - c_fund  # 13%
-        lgd_grey = 0.35  # TSBĐ bổ sung giúp hạ LGD còn 35%
+        r_grey = p_params['r'] + 0.03  # Biên lãi suất rủi ro
+        c_fund = p_params['c']
+        net_r_grey = r_grey - c_fund
+        lgd_grey = p_params['lgd'] * 0.5  # TSBĐ bổ sung giúp hạ 50% LGD
         net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
         profit_vnd = ead_final * net_margin
-        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}%. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ, lãi suất rủi ro {r_grey*100:.1f}%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        if restrict_grey:
+            reason = f"🟡 VÙNG XÁM (HẠ DO RULE 3 - NỢ CAO): FICO {fico}, DebtRatio={dr_raw*100:.1f}%. Cấp 70% hạn mức, yêu cầu bổ sung TSBĐ. Lợi nhuận: +{profit_vnd:,.0f} đ."
     else:
         zone = 'RED'
         decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
@@ -1131,6 +1187,9 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
         'net_margin': net_margin if zone != 'RED' else 0.0,
+        'knockout_triggered': knockout_triggered,
+        'knockout_reasons': knockout_reasons,
+        'restrict_grey': restrict_grey,
         'strategic_role': 'Cẩm nang Tác nghiệp Vùng Xám (Playbook IF-THEN minh bạch cho Chuyên viên Tái thẩm định)'
     }
 
@@ -1198,11 +1257,46 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
     
-    # CHÍNH SÁCH 3 VÙNG
-    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
-    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    # BỘ QUY TẮC CHẶN CỨNG NGHIỆP VỤ (BUSINESS KNOCK-OUT RULES)
+    knockout_triggered = False
+    knockout_reasons = []
     
-    if is_green:
+    # Rule 1: CIC Anomaly / Extreme Delinquency (96/98 or past due >= 96)
+    has_96_98 = (data_dict.get('Has_Code_96_98', 0) == 1) or any(
+        float(data_dict.get(c, 0)) >= 96 for c in ['NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse', 'NumberOfTime30-59DaysPastDueNotWorse']
+    )
+    if has_96_98:
+        knockout_triggered = True
+        knockout_reasons.append("🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 1): Khách hàng có mã lỗi bất thường hoặc nợ quá hạn nghiêm trọng (mã CIC 96/98). Buộc từ chối tự động (VÙNG ĐỎ) theo chuẩn an toàn hệ thống.")
+
+    # Rule 2: DebtRatio >= 1.0 (Nghĩa vụ nợ & sinh hoạt >= 100% thu nhập)
+    dr_raw = float(data_dict.get('DebtRatio', 0.0))
+    if dr_raw >= 1.0:
+        knockout_triggered = True
+        knockout_reasons.append(f"🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 2): Tỷ lệ nghĩa vụ nợ & sinh hoạt vượt quá thu nhập (DebtRatio = {dr_raw*100:.1f}% >= 100%). Buộc từ chối tự động (VÙNG ĐỎ) do mất khả năng thanh toán dòng tiền.")
+
+    # Rule 3: 0.70 <= DebtRatio < 1.0 (Giới hạn trần Vùng Xanh)
+    restrict_grey = False
+    if 0.70 <= dr_raw < 1.0:
+        restrict_grey = True
+        knockout_reasons.append(f"⚠️ QUY TẮC GIỚI HẠN CHÍNH SÁCH (RULE 3): DebtRatio cao ({dr_raw*100:.1f}% nằm trong khoảng [70%, 100%)), chặn phê duyệt thẳng Vùng Xanh, chuyển sang VÙNG XÁM (Tái thẩm định có điều kiện).")
+
+    # CHÍNH SÁCH 3 VÙNG
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0) and (not restrict_grey) and (not knockout_triggered)
+    is_grey = (not knockout_triggered) and (
+        (restrict_grey and fico >= 500) or
+        ((not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500))
+    )
+    
+    if knockout_triggered:
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - QUY TẮC CHẶN CỨNG)'
+        dec_code = 'REJECTED'
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = " | ".join(knockout_reasons)
+    elif is_green:
         zone = 'GREEN'
         decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
@@ -1215,13 +1309,15 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
         decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
         ead_final = loan_amt * 0.70
-        r_grey = 0.17
-        c_fund = 0.04
-        net_r_grey = r_grey - c_fund  # 13%
-        lgd_grey = 0.35
+        r_grey = p_params['r'] + 0.03
+        c_fund = p_params['c']
+        net_r_grey = r_grey - c_fund
+        lgd_grey = p_params['lgd'] * 0.5
         net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
         profit_vnd = ead_final * net_margin
-        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}%. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ, lãi suất rủi ro {r_grey*100:.1f}%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        if restrict_grey:
+            reason = f"🟡 VÙNG XÁM (HẠ DO RULE 3 - NỢ CAO): FICO {fico}, DebtRatio={dr_raw*100:.1f}%. Cấp 70% hạn mức, yêu cầu bổ sung TSBĐ. Lợi nhuận: +{profit_vnd:,.0f} đ."
     else:
         zone = 'RED'
         decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
@@ -1259,6 +1355,9 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
         'net_margin': net_margin if zone != 'RED' else 0.0,
+        'knockout_triggered': knockout_triggered,
+        'knockout_reasons': knockout_reasons,
+        'restrict_grey': restrict_grey,
         'strategic_role': 'Trụ cột Pháp lý & Tính Vốn Tối thiểu CAR theo chuẩn Basel II Pillar 1 & 2'
     }
 
@@ -1325,11 +1424,46 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
     
-    # CHÍNH SÁCH 3 VÙNG
-    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
-    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    # BỘ QUY TẮC CHẶN CỨNG NGHIỆP VỤ (BUSINESS KNOCK-OUT RULES)
+    knockout_triggered = False
+    knockout_reasons = []
     
-    if is_green:
+    # Rule 1: CIC Anomaly / Extreme Delinquency (96/98 or past due >= 96)
+    has_96_98 = (data_dict.get('Has_Code_96_98', 0) == 1) or any(
+        float(data_dict.get(c, 0)) >= 96 for c in ['NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse', 'NumberOfTime30-59DaysPastDueNotWorse']
+    )
+    if has_96_98:
+        knockout_triggered = True
+        knockout_reasons.append("🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 1): Khách hàng có mã lỗi bất thường hoặc nợ quá hạn nghiêm trọng (mã CIC 96/98). Buộc từ chối tự động (VÙNG ĐỎ) theo chuẩn an toàn hệ thống.")
+
+    # Rule 2: DebtRatio >= 1.0 (Nghĩa vụ nợ & sinh hoạt >= 100% thu nhập)
+    dr_raw = float(data_dict.get('DebtRatio', 0.0))
+    if dr_raw >= 1.0:
+        knockout_triggered = True
+        knockout_reasons.append(f"🚨 QUY TẮC CHẶN CỨNG (KNOCK-OUT 2): Tỷ lệ nghĩa vụ nợ & sinh hoạt vượt quá thu nhập (DebtRatio = {dr_raw*100:.1f}% >= 100%). Buộc từ chối tự động (VÙNG ĐỎ) do mất khả năng thanh toán dòng tiền.")
+
+    # Rule 3: 0.70 <= DebtRatio < 1.0 (Giới hạn trần Vùng Xanh)
+    restrict_grey = False
+    if 0.70 <= dr_raw < 1.0:
+        restrict_grey = True
+        knockout_reasons.append(f"⚠️ QUY TẮC GIỚI HẠN CHÍNH SÁCH (RULE 3): DebtRatio cao ({dr_raw*100:.1f}% nằm trong khoảng [70%, 100%)), chặn phê duyệt thẳng Vùng Xanh, chuyển sang VÙNG XÁM (Tái thẩm định có điều kiện).")
+
+    # CHÍNH SÁCH 3 VÙNG
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0) and (not restrict_grey) and (not knockout_triggered)
+    is_grey = (not knockout_triggered) and (
+        (restrict_grey and fico >= 500) or
+        ((not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500))
+    )
+    
+    if knockout_triggered:
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - QUY TẮC CHẶN CỨNG)'
+        dec_code = 'REJECTED'
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = " | ".join(knockout_reasons)
+    elif is_green:
         zone = 'GREEN'
         decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
@@ -1342,13 +1476,15 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
         decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
         ead_final = loan_amt * 0.70
-        r_grey = 0.17
-        c_fund = 0.04
-        net_r_grey = r_grey - c_fund  # 13%
-        lgd_grey = 0.35
+        r_grey = p_params['r'] + 0.03
+        c_fund = p_params['c']
+        net_r_grey = r_grey - c_fund
+        lgd_grey = p_params['lgd'] * 0.5
         net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
         profit_vnd = ead_final * net_margin
-        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}%. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ, lãi suất rủi ro {r_grey*100:.1f}%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
+        if restrict_grey:
+            reason = f"🟡 VÙNG XÁM (HẠ DO RULE 3 - NỢ CAO): FICO {fico}, DebtRatio={dr_raw*100:.1f}%. Cấp 70% hạn mức, yêu cầu bổ sung TSBĐ. Lợi nhuận: +{profit_vnd:,.0f} đ."
     else:
         zone = 'RED'
         decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
@@ -1388,6 +1524,9 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
         'net_margin': net_margin if zone != 'RED' else 0.0,
+        'knockout_triggered': knockout_triggered,
+        'knockout_reasons': knockout_reasons,
+        'restrict_grey': restrict_grey,
         'strategic_role': 'Động cơ Phê duyệt Siêu tốc Kênh Số (Digital Real-time Underwriting Engine)'
     }
 
@@ -1750,14 +1889,14 @@ st.markdown(f"""
 <div class="main-header">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <h1 style="color: #FFFFFF !important; margin: 0; font-size: 27px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">SmartCredit Banking AI Portal</h1>
-            <p style="color: #E0F2FE !important; margin: 6px 0 0 0; font-size: 15px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.25);">Hệ thống Thẩm định & Quản trị Rủi ro Tín dụng Đa Mô hình theo Chuẩn Basel II Trụ cột 1-2 & IFRS 9</p>
+            <h1 style="color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; margin: 0; font-size: 27px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.4);">SmartCredit Banking AI Portal</h1>
+            <div class="sub-header-desc" style="color: #F0F9FF !important; -webkit-text-fill-color: #F0F9FF !important; margin: 6px 0 0 0; font-size: 15px; font-weight: 600; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">Hệ thống Thẩm định & Quản trị Rủi ro Tín dụng Đa Mô hình theo Chuẩn Basel II Trụ cột 1-2 & IFRS 9</div>
         </div>
         <div style="text-align: right;">
-            <div style="font-size: 11px; background: rgba(255,255,255,0.15); padding: 5px 12px; border-radius: 20px; display: inline-block;">
+            <div style="font-size: 12px; font-weight: 700; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; background: rgba(255,255,255,0.2); padding: 6px 14px; border-radius: 20px; display: inline-block; border: 1px solid rgba(255,255,255,0.3);">
                 {mode_badge}
             </div>
-            <div style="font-size: 13px; font-weight: bold; color: #F8FAFC; margin-top: 4px;">{market_mode} MARKET MODE</div>
+            <div style="font-size: 13.5px; font-weight: 800; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; margin-top: 6px; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">{market_mode} MARKET MODE</div>
         </div>
     </div>
 </div>
@@ -1777,6 +1916,17 @@ active_tabs = st.tabs(tab_labels)
 # TAB 1: THẨM ĐỊNH TỨC THÌ (SINGLE CUSTOMER SCORING & DUAL VIEW)
 # ==============================================================================
 with active_tabs[0]:
+    st.markdown('''
+    <div style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%); color: white; padding: 12px 20px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">👤</span>
+            <span style="font-size: 15.5px; font-weight: 800; letter-spacing: 0.3px; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important;">PHÂN HỆ: CHUYÊN VIÊN THẨM ĐỊNH (SINGLE STP)</span>
+        </div>
+        <div style="font-size: 12.5px; color: #E0F2FE !important; -webkit-text-fill-color: #E0F2FE !important; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px;">
+            Thẩm định chi tiết 1 hồ sơ độc lập theo thời gian thực (Zero Data Leakage)
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
     # Khởi tạo session state cho Danh mục Thẻ tín dụng/Thấu chi & Danh mục Khoản nợ vay
     if 'card_rows' not in st.session_state:
         st.session_state.card_rows = [
@@ -1883,7 +2033,35 @@ with active_tabs[0]:
         cust_name_in = st.text_input("Họ và tên / Mã CCCD Khách hàng:", value=p_name, key=f"name_{st.session_state.cust_preset}")
         col_age1, col_age2 = st.columns(2)
         with col_age1:
-            cust_age = st.number_input("Tuổi của khách hàng:", min_value=18, max_value=85, value=p_age, step=1, key=f"age_{st.session_state.cust_preset}")
+            # Chọn ngày tháng năm sinh (DoB) hỗ trợ dải năm 1940 - 2006
+            today_date = datetime.date.today()
+            def_year = max(1940, min(2006, today_date.year - p_age))
+            default_dob = datetime.date(def_year, 6, 15)
+            cust_dob = st.date_input(
+                "Ngày tháng năm sinh (DoB):",
+                value=default_dob,
+                min_value=datetime.date(1940, 1, 1),
+                max_value=datetime.date(2006, 12, 31),
+                key=f"dob_{st.session_state.cust_preset}",
+                help="Chọn ngày sinh của khách hàng. Tuổi thực tế sẽ được tự động tính theo công thức ngân hàng: floor((Today - DoB)/365.25)."
+            )
+            # Tính tuổi thực tự động
+            cust_age = int(math.floor((today_date - cust_dob).days / 365.25))
+            
+            # Hiển thị cảnh báo trực quan nếu tuổi nằm ngoài khung [18, 65]
+            if cust_age < 18 or cust_age > 65:
+                st.markdown(f'''
+                <div style="background: #FEF2F2; border: 1px solid #F87171; border-radius: 6px; padding: 6px 10px; margin-top: 4px; font-size: 12.5px; color: #991B1B;">
+                    ⚠️ <b>Tuổi thực tế: {cust_age} tuổi</b> (Sinh {cust_dob.strftime('%d/%m/%Y')}) — Ngoài khung độ tuổi lao động chuẩn ngân hàng [18, 65].
+                </div>
+                ''', unsafe_allow_html=True)
+            else:
+                st.markdown(f'''
+                <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; padding: 6px 10px; margin-top: 4px; font-size: 12.5px; color: #1E3A8A;">
+                    🎂 <b>Tuổi thực tế: {cust_age} tuổi</b> (Sinh {cust_dob.strftime('%d/%m/%Y')}) — Trong độ tuổi lao động hợp pháp.
+                </div>
+                ''', unsafe_allow_html=True)
+
         with col_age2:
             cust_dependents = st.number_input("Số người phụ thuộc tài chính (NumberOfDependents):", min_value=0, max_value=10, value=p_dep, step=1, key=f"dep_{st.session_state.cust_preset}")
             
@@ -1936,13 +2114,24 @@ with active_tabs[0]:
     </div>
     """, unsafe_allow_html=True)
     st.caption("📌 **Theo chuẩn Give Me Some Credit (Data Dictionary):** DebtRatio = (Tổng thanh toán nợ hàng tháng + Chi phí sinh hoạt + Tiền cấp dưỡng) / Thu nhập gộp.")
+    # Gợi ý định mức chi phí sinh hoạt chuẩn đô thị theo số người phụ thuộc
+    suggested_living_vnd = 5_000_000 + 2_500_000 * cust_dependents
+    
+    col_liv_sugg1, col_liv_sugg2 = st.columns([2.2, 1])
+    with col_liv_sugg1:
+        st.caption(f"💡 **Định mức chuẩn ngân hàng bán lẻ:** 5.000.000 đ (bản thân) + 2.500.000 đ × {cust_dependents} người phụ thuộc = **{suggested_living_vnd:,.0f} VNĐ/tháng**.")
+    with col_liv_sugg2:
+        if st.button("⚡ Áp dụng định mức chuẩn đô thị", key=f"btn_sugg_liv_{st.session_state.cust_preset}", use_container_width=True):
+            st.session_state[f"liv_{st.session_state.cust_preset}"] = suggested_living_vnd
+            st.rerun()
+
     col_liv1, col_liv2 = st.columns(2)
     with col_liv1:
         living_costs_vnd = st.number_input(
             "1. Chi phí sinh hoạt cá nhân & gia đình hàng tháng (VND/tháng):",
             min_value=0,
             max_value=300_000_000,
-            value=p_living,
+            value=st.session_state.get(f"liv_{st.session_state.cust_preset}", p_living),
             step=500_000,
             format="%d",
             key=f"liv_{st.session_state.cust_preset}",
@@ -2002,11 +2191,31 @@ with active_tabs[0]:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    btn_c_del, _ = st.columns([1, 8])
-                    with btn_c_del:
+                    col_act1, col_act2, _ = st.columns([1.2, 1.2, 5])
+                    with col_act1:
+                        ed_c_chk = st.checkbox(f"✏️ Sửa Thẻ #{idx+1}", key=f"chk_ed_c_{idx}_{st.session_state.cust_preset}")
+                    with col_act2:
                         if st.button(f"🗑️ Xóa Thẻ #{idx+1}", key=f"del_card_{idx}_{st.session_state.cust_preset}"):
                             st.session_state.card_rows.pop(idx)
                             st.rerun()
+
+                    if ed_c_chk:
+                        with st.container():
+                            st.markdown(f"**Chỉnh sửa Thẻ tín dụng #{idx+1}:**")
+                            ce1, ce2 = st.columns(2)
+                            with ce1:
+                                ec_b = st.selectbox("Ngân hàng:", options=VN_BANKS, index=VN_BANKS.index(c.get('bank', 'Vietcombank')) if c.get('bank') in VN_BANKS else 0, key=f"ec_b_{idx}_{st.session_state.cust_preset}")
+                                ec_n = st.text_input("Tên thẻ:", value=c.get('name', 'Thẻ tín dụng'), key=f"ec_n_{idx}_{st.session_state.cust_preset}")
+                            with ce2:
+                                ec_lim = st.number_input("Hạn mức (VND):", min_value=1_000_000, max_value=2_000_000_000, value=int(c.get('limit', 30_000_000)), step=5_000_000, format="%d", key=f"ec_lim_{idx}_{st.session_state.cust_preset}")
+                                ec_bal = st.number_input("Dư nợ đã dùng (VND):", min_value=0, max_value=2_000_000_000, value=int(c.get('balance', 0)), step=1_000_000, format="%d", key=f"ec_bal_{idx}_{st.session_state.cust_preset}")
+                            if st.button(f"💾 Cập nhật Thẻ #{idx+1}", key=f"save_ed_c_{idx}_{st.session_state.cust_preset}", type="primary"):
+                                st.session_state.card_rows[idx]['bank'] = ec_b
+                                st.session_state.card_rows[idx]['name'] = ec_n
+                                st.session_state.card_rows[idx]['limit'] = ec_lim
+                                st.session_state.card_rows[idx]['balance'] = ec_bal
+                                st.success(f"✓ Đã cập nhật thành công Thẻ #{idx+1}!")
+                                st.rerun()
 
     # Form thêm thẻ mới (Dấu cộng)
     with st.expander("➕ Thêm Thẻ Tín Dụng / Hạn Mức Thấu Chi Mới", expanded=False):
@@ -2144,11 +2353,35 @@ with active_tabs[0]:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
-                    btn_l_del, _ = st.columns([1, 8])
-                    with btn_l_del:
+                    col_lact1, col_lact2, _ = st.columns([1.3, 1.3, 5])
+                    with col_lact1:
+                        ed_l_chk = st.checkbox(f"✏️ Sửa Khoản Vay #{idx+1}", key=f"chk_ed_l_{idx}_{st.session_state.cust_preset}")
+                    with col_lact2:
                         if st.button(f"🗑️ Xóa Khoản Vay #{idx+1}", key=f"del_loan_{idx}_{st.session_state.cust_preset}"):
                             st.session_state.loan_rows.pop(idx)
                             st.rerun()
+
+                    if ed_l_chk:
+                        with st.container():
+                            st.markdown(f"**Chỉnh sửa Khoản nợ vay #{idx+1}:**")
+                            le1, le2 = st.columns(2)
+                            with le1:
+                                el_b = st.selectbox("Ngân hàng:", options=VN_BANKS, index=VN_BANKS.index(l.get('bank', 'Vietcombank')) if l.get('bank') in VN_BANKS else 0, key=f"el_b_{idx}_{st.session_state.cust_preset}")
+                                el_n = st.text_input("Tên khoản vay:", value=l.get('name', 'Khoản vay'), key=f"el_n_{idx}_{st.session_state.cust_preset}")
+                                el_t = st.selectbox("Loại khoản vay:", options=['MORTGAGE_RE', 'CONSUMER_INSTALLMENT'], format_func=lambda x: "Vay Thế Chấp BĐS" if x == 'MORTGAGE_RE' else "Vay Trả Góp / Tiêu Dùng", index=0 if l.get('loan_type') == 'MORTGAGE_RE' else 1, key=f"el_t_{idx}_{st.session_state.cust_preset}")
+                            with le2:
+                                el_bal = st.number_input("Dư nợ còn lại (VND):", min_value=1_000_000, max_value=50_000_000_000, value=int(l.get('balance', 100_000_000)), step=10_000_000, format="%d", key=f"el_bal_{idx}_{st.session_state.cust_preset}")
+                                el_rate = st.number_input("Lãi suất (%/năm):", min_value=0.0, max_value=40.0, value=float(l.get('interest_rate', 10.0)), step=0.5, key=f"el_r_{idx}_{st.session_state.cust_preset}")
+                                el_date = st.date_input("Ngày đáo hạn hợp đồng:", value=m_date, min_value=today, max_value=datetime.date(today.year+35, 12, 31), key=f"el_d_{idx}_{st.session_state.cust_preset}")
+                            if st.button(f"💾 Cập nhật Khoản Vay #{idx+1}", key=f"save_ed_l_{idx}_{st.session_state.cust_preset}", type="primary"):
+                                st.session_state.loan_rows[idx]['bank'] = el_b
+                                st.session_state.loan_rows[idx]['name'] = el_n
+                                st.session_state.loan_rows[idx]['loan_type'] = el_t
+                                st.session_state.loan_rows[idx]['balance'] = el_bal
+                                st.session_state.loan_rows[idx]['interest_rate'] = el_rate
+                                st.session_state.loan_rows[idx]['mature_date'] = el_date
+                                st.success(f"✓ Đã cập nhật thành công Khoản vay #{idx+1}!")
+                                st.rerun()
 
     # Form thêm khoản vay mới
     with st.expander("➕ Thêm Khoản Nợ Vay Mới Vào Danh Mục", expanded=False):
@@ -2299,11 +2532,11 @@ with active_tabs[0]:
 
     st.markdown("---")
 
-    # ------------------ MODULE 07: TỔNG HỢP HỢP ĐỒNG TÍN DỤNG (KHOẢN VAY & THẺ) & KHOẢN VAY BẤT ĐỘNG SẢN (CIC) ------------------
+    # ------------------ MODULE 07: TỔNG HỢP HỢP ĐỒNG TÍN DỤNG CIC (KHOẢN VAY & THẺ TÍN DỤNG) ------------------
     st.markdown('''
     <div class="hdb-section-header">
         <span class="hdb-badge">07</span>
-        <span class="hdb-title">TỔNG HỢP HỢP ĐỒNG TÍN DỤNG (KHOẢN VAY & THẺ TÍN DỤNG) & KHOẢN VAY BẤT ĐỘNG SẢN (CIC)</span>
+        <span class="hdb-title">TỔNG HỢP HỢP ĐỒNG TÍN DỤNG CIC (KHOẢN VAY & THẺ TÍN DỤNG)</span>
     </div>
     ''', unsafe_allow_html=True)
     st.caption("📌 **Quy định chuẩn Give Me Some Credit (Data Dictionary):** Biến **NumberOfOpenCreditLinesAndLoans** đo lường TỔNG TẤT CẢ các hợp đồng tín dụng đang mở của khách hàng, bao gồm cả Thẻ tín dụng/thấu chi (Mục 04) và Khoản nợ vay trả góp/thế chấp (Mục 05).")
@@ -2327,23 +2560,24 @@ with active_tabs[0]:
     col_c7_1, col_c7_2 = st.columns(2)
     with col_c7_1:
         st.markdown(f'''
-        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 145px;">
-            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.3px;">TỔNG SỐ HỢP ĐỒNG TÍN DỤNG CIC (GỒM THẺ MỤC 04 + VAY MỤC 05)</div>
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 155px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.3px;">TỔNG HỢP ĐỒNG TÍN DỤNG CIC (NumberOfOpenCreditLinesAndLoans)</div>
             <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 14.5px; font-weight: 600; color: #64748B;">hợp đồng đang mở</span></div>
-            <div style="font-size: 13px; color: #334155; line-height: 1.5;">
+            <div style="font-size: 13px; color: #334155; line-height: 1.55;">
                 • <b>Số thẻ tín dụng / hạn mức thấu chi (Mục 04):</b> <b style="color: #1D4ED8;">{len(open_cards)}</b> thẻ<br/>
                 • <b>Số khoản nợ vay trả góp / thế chấp (Mục 05):</b> <b style="color: #059669;">{len(open_loans)}</b> khoản<br/>
-                <span style="font-size: 12px; color: #64748B;">📌 <i>Biến <b>NumberOfOpenCreditLinesAndLoans</b> tính gộp cả 2 mục theo chuẩn Data Dictionary.</i></span>
+                <span style="font-size: 11.5px; color: #64748B;">💡 <i>Lưu ý: Biến NumberOfOpenCreditLinesAndLoans trong bộ dữ liệu quốc tế tính gộp cả Thẻ tín dụng (Mục 04) và Khoản nợ vay (Mục 05). Nếu chỉ đếm riêng thẻ tín dụng, hệ thống tách riêng ở dòng trên ({len(open_cards)} thẻ).</i></span>
             </div>
         </div>
         ''', unsafe_allow_html=True)
     with col_c7_2:
         st.markdown(f'''
-        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #059669; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 145px;">
-            <div style="font-size: 12px; font-weight: 700; color: #065F46; text-transform: uppercase; letter-spacing: 0.3px;">KHOẢN VAY BẤT ĐỘNG SẢN / THẾ CHẤP NHÀ</div>
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #059669; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 155px;">
+            <div style="font-size: 12px; font-weight: 700; color: #065F46; text-transform: uppercase; letter-spacing: 0.3px;">KHOẢN VAY BẤT ĐỘNG SẢN / THẾ CHẤP NHÀ (NumberRealEstateLoansOrLines)</div>
             <div style="font-size: 28px; font-weight: 800; color: #059669; margin: 6px 0;">{n_re} <span style="font-size: 15px; font-weight: 600; color: #64748B;">khoản</span></div>
-            <div style="font-size: 13px; color: #475569; line-height: 1.45;">
-                ✓ Biến <b>NumberRealEstateLoansOrLines</b>: Số lượng khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD (tính từ Mục 05).
+            <div style="font-size: 13px; color: #475569; line-height: 1.55;">
+                ✓ Biến <b>NumberRealEstateLoansOrLines</b>: Số lượng khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD (tính từ Mục 05).<br/>
+                <span style="font-size: 11.5px; color: #059669;">Phân khúc nợ có TSBĐ vững chắc, được mô hình đánh giá mức LGD thấp hơn nợ tiêu dùng tín chấp.</span>
             </div>
         </div>
         ''', unsafe_allow_html=True)
@@ -2436,6 +2670,35 @@ with active_tabs[0]:
     res_xgb = score_single_customer_xgb(customer_features_payload, product_code, market_mode, loan_amount)
 
     st.markdown("---")
+    
+    # BANNER CẢNH BÁO NẾU KÍCH HOẠT QUY TẮC CHẶN CỨNG NGHIỆP VỤ (KNOCK-OUT RULES)
+    active_eval = res_dt if model_choice == 'DECISION_TREE' else (res_lr if model_choice == 'LOGISTIC_REGRESSION' else (res_xgb if model_choice == 'XGBOOST' else res_dt))
+    if active_eval.get('knockout_triggered'):
+        st.markdown(f'''
+        <div style="background: #FEF2F2; border: 2px solid #DC2626; border-left: 8px solid #DC2626; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.15);">
+            <div style="color: #991B1B; font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                🚨 KÍCH HOẠT QUY TẮC CHẶN CỨNG NGHIỆP VỤ (BUSINESS KNOCK-OUT RULES)
+            </div>
+            <div style="color: #B91C1C; font-size: 14px; margin-top: 8px; line-height: 1.55;">
+                {'<br/>'.join(active_eval.get('knockout_reasons', []))}
+            </div>
+            <div style="font-size: 12.5px; color: #7F1D1D; margin-top: 8px; font-style: italic;">
+                📌 <b>Hàng rào kiểm soát rủi ro Basel II:</b> Hồ sơ bị buộc đưa vào VÙNG ĐỎ (Từ chối tự động) bất kể điểm số FICO của mô hình AI dự báo là bao nhiêu. Đây là cơ chế bảo vệ vốn ngân hàng trước các hành vi gian lận hồ sơ hoặc nợ quá hạn nghiêm trọng.
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+    elif active_eval.get('restrict_grey'):
+        st.markdown(f'''
+        <div style="background: #FFFBEB; border: 2px solid #D97706; border-left: 8px solid #D97706; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(217, 119, 6, 0.1);">
+            <div style="color: #92400E; font-weight: 800; font-size: 15px;">
+                ⚠️ ÁP DỤNG QUY TẮC GIỚI HẠN RỦI RO CHÍNH SÁCH (POLICY RULE 3)
+            </div>
+            <div style="color: #B45309; font-size: 13.5px; margin-top: 6px; line-height: 1.5;">
+                {'<br/>'.join(active_eval.get('knockout_reasons', []))}
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
     st.markdown("## 📊 KẾT QUẢ THẨM ĐỊNH & CHẤM ĐIỂM TÍN DỤNG")
     
     cur_p_display = (st.session_state.policy_configs['dt'].get(product_code, dt_cfg['CREDIT_CARD']))['params']
@@ -2776,6 +3039,17 @@ with active_tabs[0]:
 # ==============================================================================
 if 'batch' in user['allowed_tabs']:
     with active_tabs[tab_labels.index("📁 Chấm điểm Danh mục Lô (Batch Excel)")]:
+        st.markdown('''
+        <div style="background: linear-gradient(135deg, #0F766E 0%, #0D9488 100%); color: white; padding: 12px 20px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📂</span>
+                <span style="font-size: 15.5px; font-weight: 800; letter-spacing: 0.3px; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important;">PHÂN HỆ: TRƯỞNG PHÒNG / QUẢN LÝ RỦI RO DANH MỤC (BATCH SCORING)</span>
+            </div>
+            <div style="font-size: 12.5px; color: #CCFBF1 !important; -webkit-text-fill-color: #CCFBF1 !important; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px;">
+                Chấm điểm hàng loạt danh mục lô & trích xuất báo cáo Excel chuẩn Unicode
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
         st.markdown("### 📁 Tải Lên Danh Sách Hồ Sơ Khách Hàng Để Chấm Điểm Hàng Loạt")
         st.write("Hệ thống cho phép nạp hàng nghìn hồ sơ từ file Excel hoặc CSV để tính toán nhanh chóng Điểm FICO, Phân hạng Rủi ro và Lợi nhuận dự kiến song song bằng **cả 3 mô hình (Decision Tree, Logistic Regression, XGBoost)**.")
         
@@ -2881,7 +3155,27 @@ if 'batch' in user['allowed_tabs']:
                         lp2.metric("Lợi Nhuận (Hồi Quy Logistic)", f"{tot_prof_lr:+,.2f} Tỷ VND")
                         lp3.metric("Lợi Nhuận (Monotonic XGBoost)", f"{tot_prof_xgb:+,.2f} Tỷ VND")
                         
-                        st.dataframe(result_batch_df.head(15), use_container_width=True)
+                        # BỘ LỌC ĐỘNG 3 VÙNG QUYẾT ĐỊNH
+                        flt_col1, flt_col2 = st.columns([1.5, 2.5])
+                        with flt_col1:
+                            zone_filter = st.selectbox(
+                                "🎯 Bộ lọc phân vùng danh mục:",
+                                options=["TẤT CẢ HỒ SƠ", "🟢 VÙNG XANH (DUYỆT THẲNG)", "🟡 VÙNG XÁM (TÁI THẨM ĐỊNH)", "🔴 VÙNG ĐỎ (TỪ CHỐI)"],
+                                key="batch_zone_filter"
+                            )
+                        with flt_col2:
+                            st.caption("💡 Lọc nhanh các hồ sơ theo phân vùng để giao việc cho chuyên viên thẩm định hoặc trích xuất danh sách khách hàng cần bổ sung tài sản thế chấp.")
+                        
+                        filtered_batch_df = result_batch_df.copy()
+                        if zone_filter == "🟢 VÙNG XANH (DUYỆT THẲNG)":
+                            filtered_batch_df = filtered_batch_df[filtered_batch_df['Zone_Tree'] == 'GREEN']
+                        elif zone_filter == "🟡 VÙNG XÁM (TÁI THẨM ĐỊNH)":
+                            filtered_batch_df = filtered_batch_df[filtered_batch_df['Zone_Tree'] == 'GREY']
+                        elif zone_filter == "🔴 VÙNG ĐỎ (TỪ CHỐI)":
+                            filtered_batch_df = filtered_batch_df[filtered_batch_df['Zone_Tree'] == 'RED']
+
+                        st.write(f"Hiển thị **{len(filtered_batch_df):,}** / **{len(result_batch_df):,}** hồ sơ phù hợp:")
+                        st.dataframe(filtered_batch_df.head(25), use_container_width=True)
                         
                         # Xuất file kết quả: Hỗ trợ cả Excel .XLSX chuẩn và CSV có UTF-8 BOM chống triệt để lỗi font tiếng Việt trên Windows Excel
                         res_csv = result_batch_df.to_csv(index=False).encode('utf-8-sig')
@@ -2918,6 +3212,17 @@ if 'batch' in user['allowed_tabs']:
 # ==============================================================================
 if 'policy' in user['allowed_tabs']:
     with active_tabs[tab_labels.index("⚖️ Trung tâm Điều hành Chính sách (CRO)")]:
+        st.markdown('''
+        <div style="background: linear-gradient(135deg, #7C2D12 0%, #C2410C 100%); color: white; padding: 12px 20px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(124, 45, 18, 0.25); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">⚖️</span>
+                <span style="font-size: 15.5px; font-weight: 800; letter-spacing: 0.3px; color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important;">PHÂN HỆ: GIÁM ĐỐC QUẢN TRỊ RỦI RO (CRO POLICY CENTER)</span>
+            </div>
+            <div style="font-size: 12.5px; color: #FFEDD5 !important; -webkit-text-fill-color: #FFEDD5 !important; background: rgba(255,255,255,0.18); padding: 4px 12px; border-radius: 20px;">
+                Điều hành khẩu vị rủi ro vĩ mô, biên lợi nhuận r - c và đường cong tối ưu hóa P&L
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
         st.markdown("### ⚖️ Điều Hành Khẩu Vị Rủi Ro & So Sánh Đường Cong Lợi Nhuận Cả 3 Mô Hình")
         st.write("Cho phép Giám đốc Quản lý Rủi ro (CRO) đối sánh trực tiếp đường cong tối ưu hóa biên lợi nhuận giữa **Cây Quyết Định**, **Hồi Quy Logistic**, và **XGBoost** trên toàn bộ thang điểm FICO.")
         
@@ -3055,21 +3360,38 @@ if 'policy' in user['allowed_tabs']:
             st.plotly_chart(fig_compare_curve, use_container_width=True)
             st.caption("💡 **Nhận xét chính sách:** XGBoost đạt biên lợi nhuận cao nhất và phân tách rủi ro sắc nét nhất xung quanh điểm hòa vốn, giúp ngân hàng mở rộng tệp phê duyệt an toàn.")
             
-        st.markdown("##### 🏆 Bảng Đối Sánh Ngưỡng Cắt Tối Ưu Hóa Lợi Nhuận Giữa 3 Mô Hình (Optimal Cut-offs)")
+        st.markdown("##### 🏆 Bảng Đối Sánh Ngưỡng Cắt Tối Ưu Hóa Lợi Nhuận Giữa 3 Mô Hình (Optimal Cut-offs) — [TỰ ĐỘNG CẬP NHẬT THEO THANH TRƯỢT]")
+        
+        # Tính toán FICO Cutoff động theo tham số vừa điều chỉnh
+        log_odds_star = np.log((calc_pd_star + 1e-7) / (1.0 - calc_pd_star + 1e-7))
+        dynamic_lr_cutoff = int(np.clip(np.round(offset - factor * log_odds_star), 400, 750))
+        dynamic_dt_cutoff = 605 if calc_pd_star <= 0.015 else (572 if calc_pd_star <= 0.035 else (540 if calc_pd_star <= 0.08 else (500 if calc_pd_star <= 0.15 else 480)))
+        dynamic_xgb_cutoff = int(np.clip(np.round(offset - factor * ((log_odds_star - 0.05) / 1.12)), 400, 750))
+        
         opt_data = [
-            {'Dòng Sản Phẩm': 'Cho vay Mua nhà (Mortgage)', 'Cutoff FICO (Tree)': 550, 'Cutoff FICO (Logistic)': 544, 'Cutoff FICO (XGBoost)': 544, 'PD Hòa Vốn (PD*)': '12.28%', 'Đánh Giá Khẩu Vị CRO': 'Đồng thuận cao, mở rộng tệp khách hàng an toàn'},
-            {'Dòng Sản Phẩm': 'Cho vay Mua Ô tô (Auto Loan)', 'Cutoff FICO (Tree)': 555, 'Cutoff FICO (Logistic)': 552, 'Cutoff FICO (XGBoost)': 551, 'PD Hòa Vốn (PD*)': '10.00%', 'Đánh Giá Khẩu Vị CRO': 'Kiểm soát chặt chẽ rủi ro mất giá tài sản thế chấp'},
-            {'Dòng Sản Phẩm': 'Vay Tiêu dùng Tín chấp', 'Cutoff FICO (Tree)': 551, 'Cutoff FICO (Logistic)': 542, 'Cutoff FICO (XGBoost)': 543, 'PD Hòa Vốn (PD*)': '12.79%', 'Đánh Giá Khẩu Vị CRO': 'XGBoost tối ưu hóa phân loại khách hàng cận biên'},
-            {'Dòng Sản Phẩm': 'Thẻ Tín dụng (Credit Card)', 'Cutoff FICO (Tree)': 542, 'Cutoff FICO (Logistic)': 540, 'Cutoff FICO (XGBoost)': 540, 'PD Hòa Vốn (PD*)': '14.14%', 'Đánh Giá Khẩu Vị CRO': 'Tối ưu hóa tối đa biên lãi gộp 18%/năm'}
+            {'Dòng Sản Phẩm': 'Cho vay Mua nhà (Mortgage)', 'Cutoff FICO (Tree)': dynamic_dt_cutoff if sel_pol_prod=='MORTGAGE' else 550, 'Cutoff FICO (Logistic)': dynamic_lr_cutoff if sel_pol_prod=='MORTGAGE' else 544, 'Cutoff FICO (XGBoost)': dynamic_xgb_cutoff if sel_pol_prod=='MORTGAGE' else 544, 'PD Hòa Vốn (PD*)': f"{calc_pd_star*100:.2f}%" if sel_pol_prod=='MORTGAGE' else '12.28%', 'Đánh Giá Khẩu Vị CRO': 'Đồng thuận cao, mở rộng tệp khách hàng an toàn' if sel_pol_prod!='MORTGAGE' else f"Đã cập nhật theo r={new_r*100:.1f}%, c={new_c*100:.1f}%, LGD={new_lgd*100:.1f}%"},
+            {'Dòng Sản Phẩm': 'Cho vay Mua Ô tô (Auto Loan)', 'Cutoff FICO (Tree)': dynamic_dt_cutoff if sel_pol_prod=='AUTO' else 555, 'Cutoff FICO (Logistic)': dynamic_lr_cutoff if sel_pol_prod=='AUTO' else 552, 'Cutoff FICO (XGBoost)': dynamic_xgb_cutoff if sel_pol_prod=='AUTO' else 551, 'PD Hòa Vốn (PD*)': f"{calc_pd_star*100:.2f}%" if sel_pol_prod=='AUTO' else '10.00%', 'Đánh Giá Khẩu Vị CRO': 'Kiểm soát chặt chẽ rủi ro mất giá tài sản thế chấp' if sel_pol_prod!='AUTO' else f"Đã cập nhật theo r={new_r*100:.1f}%, c={new_c*100:.1f}%, LGD={new_lgd*100:.1f}%"},
+            {'Dòng Sản Phẩm': 'Vay Tiêu dùng Tín chấp', 'Cutoff FICO (Tree)': dynamic_dt_cutoff if sel_pol_prod=='UNSECURED' else 551, 'Cutoff FICO (Logistic)': dynamic_lr_cutoff if sel_pol_prod=='UNSECURED' else 542, 'Cutoff FICO (XGBoost)': dynamic_xgb_cutoff if sel_pol_prod=='UNSECURED' else 543, 'PD Hòa Vốn (PD*)': f"{calc_pd_star*100:.2f}%" if sel_pol_prod=='UNSECURED' else '12.79%', 'Đánh Giá Khẩu Vị CRO': 'XGBoost tối ưu hóa phân loại khách hàng cận biên' if sel_pol_prod!='UNSECURED' else f"Đã cập nhật theo r={new_r*100:.1f}%, c={new_c*100:.1f}%, LGD={new_lgd*100:.1f}%"},
+            {'Dòng Sản Phẩm': 'Thẻ Tín dụng (Credit Card)', 'Cutoff FICO (Tree)': dynamic_dt_cutoff if sel_pol_prod=='CREDIT_CARD' else 542, 'Cutoff FICO (Logistic)': dynamic_lr_cutoff if sel_pol_prod=='CREDIT_CARD' else 540, 'Cutoff FICO (XGBoost)': dynamic_xgb_cutoff if sel_pol_prod=='CREDIT_CARD' else 540, 'PD Hòa Vốn (PD*)': f"{calc_pd_star*100:.2f}%" if sel_pol_prod=='CREDIT_CARD' else '14.14%', 'Đánh Giá Khẩu Vị CRO': 'Tối ưu hóa tối đa biên lãi gộp 18%/năm' if sel_pol_prod!='CREDIT_CARD' else f"Đã cập nhật theo r={new_r*100:.1f}%, c={new_c*100:.1f}%, LGD={new_lgd*100:.1f}%"}
         ]
         st.dataframe(pd.DataFrame(opt_data), use_container_width=True, hide_index=True)
 
         st.markdown("---")
-        st.markdown("##### 💵 ĐƠN GIÁ LÃI/LỖ KINH TẾ VI MÔ VÀ CƠ CHẾ DÒNG TIỀN P&L TRÊN TỪNG HỒ SƠ (UNIT ECONOMICS)")
-        st.write("Cơ sở hạch toán dòng tiền vi mô trên hạn mức cấp tín dụng cơ sở **100.000.000 VNĐ** theo chuẩn Basel II:")
+        st.markdown("##### 💵 ĐƠN GIÁ LÃI/LỖ KINH TẾ VI MÔ VÀ CƠ CHẾ DÒNG TIỀN P&L TRÊN TỪNG HỒ SƠ (UNIT ECONOMICS) — [TÍNH TOÁN THEO THAM SỐ THỰC TẾ]")
+        st.write(f"Cơ sở hạch toán dòng tiền vi mô trên hạn mức cấp tín dụng cơ sở **100.000.000 VNĐ** theo chuẩn Basel II cho sản phẩm **{dt_cfg[sel_pol_prod]['product_name']}**:")
+        
+        # Tính toán dòng tiền vi mô động theo tham số slider r, c, lgd
+        good_green_profit = 100_000_000 * calc_net_m
+        bad_green_loss = 100_000_000 * new_lgd
+        
+        r_grey_dyn = new_r + 0.03
+        lgd_grey_dyn = new_lgd * 0.5
+        good_grey_profit = 70_000_000 * (r_grey_dyn - new_c)
+        bad_grey_loss = 70_000_000 * lgd_grey_dyn
+        
         unit_econ_df = pd.DataFrame([
-            {'Vùng Thẩm định': '🟢 Vùng Xanh (Duyệt Thẳng)', 'Hạn mức Cấp (EAD)': '100.000.000 VNĐ (100%)', 'Lãi suất r (%)': '14.0%', 'Chi phí vốn c (%)': '4.0%', 'Tỷ lệ Tổn thất LGD (%)': '75.0% (Tín chấp)', 'Lợi nhuận Khách Tốt (y=0)': '+10.000.000 VNĐ', 'Tổn thất Khách Xấu (y=1)': '-75.000.000 VNĐ'},
-            {'Vùng Thẩm định': '🟡 Vùng Xám (Tái Thẩm Định)', 'Hạn mức Cấp (EAD)': '70.000.000 VNĐ (70%)', 'Lãi suất r (%)': '17.0% (Bù rủi ro)', 'Chi phí vốn c (%)': '4.0%', 'Tỷ lệ Tổn thất LGD (%)': '35.0% (Có TSBĐ)', 'Lợi nhuận Khách Tốt (y=0)': '+9.100.000 VNĐ', 'Tổn thất Khách Xấu (y=1)': '-24.500.000 VNĐ'},
+            {'Vùng Thẩm định': '🟢 Vùng Xanh (Duyệt Thẳng)', 'Hạn mức Cấp (EAD)': '100.000.000 VNĐ (100%)', 'Lãi suất r (%)': f"{new_r*100:.1f}%", 'Chi phí vốn c (%)': f"{new_c*100:.1f}%", 'Tỷ lệ Tổn thất LGD (%)': f"{new_lgd*100:.1f}%", 'Lợi nhuận Khách Tốt (y=0)': f"{good_green_profit:+,.0f} VNĐ", 'Tổn thất Khách Xấu (y=1)': f"-{bad_green_loss:,.0f} VNĐ"},
+            {'Vùng Thẩm định': '🟡 Vùng Xám (Tái Thẩm Định)', 'Hạn mức Cấp (EAD)': '70.000.000 VNĐ (70%)', 'Lãi suất r (%)': f"{r_grey_dyn*100:.1f}% (Bù rủi ro)", 'Chi phí vốn c (%)': f"{new_c*100:.1f}%", 'Tỷ lệ Tổn thất LGD (%)': f"{lgd_grey_dyn*100:.1f}% (Có TSBĐ)", 'Lợi nhuận Khách Tốt (y=0)': f"{good_grey_profit:+,.0f} VNĐ", 'Tổn thất Khách Xấu (y=1)': f"-{bad_grey_loss:,.0f} VNĐ"},
             {'Vùng Thẩm định': '🔴 Vùng Đỏ (Từ Chối)', 'Hạn mức Cấp (EAD)': '0 VNĐ (0%)', 'Lãi suất r (%)': '0.0%', 'Chi phí vốn c (%)': '0.0%', 'Tỷ lệ Tổn thất LGD (%)': '0.0%', 'Lợi nhuận Khách Tốt (y=0)': '0 VNĐ', 'Tổn thất Khách Xấu (y=1)': '0 VNĐ (Bảo toàn vốn)'}
         ])
         st.dataframe(unit_econ_df, use_container_width=True, hide_index=True)
