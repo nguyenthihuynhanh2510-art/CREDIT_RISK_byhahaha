@@ -1,0 +1,6 @@
+Hạng Rủi ro,Số nút lá,% Hồ sơ Test,Số hồ sơ Test,PD Train (%),PD Test (%),% Tổng Nợ xấu Test,Chính sách Đề xuất
+Hạng 1 (< 2%),4,51.33,15398,1.05,1.06,8.13,Duyệt tự động (Auto-Approve)
+Hạng 2 (2% - 5%),6,14.86,4458,3.4,3.25,7.23,Duyệt tiêu chuẩn (Standard Approve)
+Hạng 3 (5% - 10%),6,13.95,4185,6.58,6.74,14.06,Duyệt có điều kiện (Conditional)
+Hạng 4 (10% - 20%),16,11.3,3389,12.01,12.39,20.95,Thẩm định thủ công (Manual Review)
+Hạng 5 (> 20%),54,8.57,2570,39.08,38.72,49.63,Từ chối / Yêu cầu TSBĐ (Reject/Collateral)

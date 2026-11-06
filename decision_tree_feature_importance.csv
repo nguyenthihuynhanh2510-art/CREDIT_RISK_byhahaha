@@ -1,12 +1,13 @@
 Biến đặc trưng,MDI Importance,MDI Tỷ lệ (%),Permutation Importance,Permutation Std
-NumberOfTimes90DaysLate,0.6248,62.48,0.0417,0.0015
-RevolvingUtilizationOfUnsecuredLines,0.1801,18.01,0.0852,0.0039
-NumberOfTime60-89DaysPastDueNotWorse,0.0975,9.75,0.019,0.0011
-NumberOfTime30-59DaysPastDueNotWorse,0.0754,7.54,0.0377,0.0015
-DebtRatio,0.0091,0.91,0.0073,0.0007
-age,0.0087,0.87,0.0033,0.0006
-NumberOfOpenCreditLinesAndLoans,0.0026,0.26,0.0014,0.0003
-NumberRealEstateLoansOrLines,0.0018,0.18,0.0014,0.0006
-MonthlyIncome,0.0,0.0,0.0,0.0
+NumberOfTimes90DaysLate,0.4588,45.88,0.0376,0.0012
+RevolvingUtilizationOfUnsecuredLines,0.2888,28.88,0.085,0.0024
+NumberOfTime30-59DaysPastDueNotWorse,0.1245,12.45,0.0373,0.0021
+NumberOfTime60-89DaysPastDueNotWorse,0.0659,6.59,0.018,0.001
+Has_Code_96_98,0.0203,2.03,0.0018,0.0001
+DebtRatio,0.0188,1.88,0.0043,0.0004
+age,0.0121,1.21,0.0052,0.0014
+NumberRealEstateLoansOrLines,0.007,0.7,-0.0001,0.0002
+MonthlyIncome,0.0031,0.31,0.0001,0.0001
+NumberOfOpenCreditLinesAndLoans,0.0007,0.07,-0.0,0.0
 NumberOfDependents,0.0,0.0,0.0,0.0
 MonthlyIncome_is_missing,0.0,0.0,0.0,0.0

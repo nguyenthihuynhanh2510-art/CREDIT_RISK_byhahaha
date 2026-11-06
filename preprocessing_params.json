@@ -1,0 +1,22 @@
+{
+  "median_age": 52.0,
+  "cap_revolving": 1.3692694101850074,
+  "cap_debtratio": 17.879946737700653,
+  "median_debtratio": 0.292421194,
+  "cap_income": 35000.0,
+  "median_income": 5416.0,
+  "median_dependents": 0.0,
+  "imputer_pred_features": [
+    "age",
+    "NumberRealEstateLoansOrLines",
+    "NumberOfOpenCreditLinesAndLoans",
+    "RevolvingUtilizationOfUnsecuredLines"
+  ],
+  "imputer_intercept": 7.953626897545309,
+  "imputer_coefs": {
+    "age": 0.0040857409353036315,
+    "NumberRealEstateLoansOrLines": 0.19011339818939824,
+    "NumberOfOpenCreditLinesAndLoans": 0.020836879717741966,
+    "RevolvingUtilizationOfUnsecuredLines": -0.07473391387347263
+  }
+}

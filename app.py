@@ -16,6 +16,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import xgboost as xgb
+import preprocessing
 
 # Thư viện kết xuất Báo cáo Thẩm định chuẩn A4
 from reportlab.lib.pagesizes import A4
@@ -534,10 +535,16 @@ def load_multi_model_risk_assets():
     factor = pdo / np.log(2.0)
     offset = base_score - factor * np.log(base_odds)
 
-    return dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset
+    p_prep = next((os.path.join(d, "preprocessing_params.json") for d in possible_dirs if os.path.exists(os.path.join(d, "preprocessing_params.json"))), None)
+    prep_params = {}
+    if p_prep:
+        with open(p_prep, "r", encoding="utf-8") as f:
+            prep_params = json.load(f)
+
+    return dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset, prep_params
 
 try:
-    dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset = load_multi_model_risk_assets()
+    dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset, prep_params = load_multi_model_risk_assets()
     leaf_info = leaf_df.set_index('Leaf ID').to_dict('index') if not leaf_df.empty else {}
 except Exception as e:
     st.error(f"Lỗi khi nạp dữ liệu mô hình: {e}")
@@ -548,7 +555,7 @@ FEATURE_COLS = [
     'NumberOfTime30-59DaysPastDueNotWorse', 'DebtRatio', 'MonthlyIncome',
     'NumberOfOpenCreditLinesAndLoans', 'NumberOfTimes90DaysLate',
     'NumberRealEstateLoansOrLines', 'NumberOfTime60-89DaysPastDueNotWorse',
-    'NumberOfDependents', 'MonthlyIncome_is_missing'
+    'NumberOfDependents', 'MonthlyIncome_is_missing', 'Has_Code_96_98'
 ]
 
 # ==============================================================================
@@ -755,44 +762,36 @@ def calculate_debt_ratio(accounts, gross_income_vnd, alimony_vnd=0.0, living_cos
         'explanation': f"Nghĩa vụ hàng tháng ({monthly_debt_payments:,.0f} đ nợ + {living_costs_vnd:,.0f} đ sinh hoạt + {alimony_vnd:,.0f} đ cấp dưỡng) / Thu nhập gộp {gross_income:,.0f} đ = {display_pct:.2f}%."
     }
 # ==============================================================================
-# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO DECISION TREE
+# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO DECISION TREE (86 LÁ - IF-THEN TRANSPARENT PLAYBOOK)
 # ==============================================================================
 def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     df_in = pd.DataFrame([data_dict])
+    
+    # Xử lý cờ cảnh báo mã lỗi hệ thống 96/98 và khuyết thu nhập theo Ý tưởng 2
+    delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
+    if 'Has_Code_96_98' not in df_in.columns:
+        df_in['Has_Code_96_98'] = df_in[delinq_cols].isin([96, 98]).any(axis=1).astype(int)
+        for c in delinq_cols:
+            if c in df_in.columns:
+                df_in[c] = df_in[c].replace([96, 98], 0)
+                
     if 'MonthlyIncome_is_missing' not in df_in.columns:
-        if 'MonthlyIncome' in df_in.columns and (pd.isnull(df_in['MonthlyIncome'].iloc[0]) or df_in['MonthlyIncome'].iloc[0] == 0):
-            df_in['MonthlyIncome_is_missing'] = 1
-        else:
-            df_in['MonthlyIncome_is_missing'] = 0
-            
+        df_in['MonthlyIncome_is_missing'] = (df_in['MonthlyIncome'].isna() | (df_in['MonthlyIncome'] <= 0)).astype(int)
+        
     for col in FEATURE_COLS:
         if col not in df_in.columns:
             df_in[col] = 0.0
             
-    X_cust = df_in[FEATURE_COLS]
+    X_cust = df_in[FEATURE_COLS].astype(float)
     leaf_id = int(dt_model.apply(X_cust)[0])
-    base_pd = float(dt_model.predict_proba(X_cust)[0, 1])
+    prob_pd = float(dt_model.predict_proba(X_cust)[0, 1])
+    prob_pd = float(np.clip(prob_pd, 0.0001, 0.9999))
     
-    util = float(data_dict.get('RevolvingUtilizationOfUnsecuredLines', 0.25))
-    debt = float(data_dict.get('DebtRatio', 0.35))
-    inc = float(data_dict.get('MonthlyIncome', 6000.0)) if not (pd.isnull(data_dict.get('MonthlyIncome')) or data_dict.get('MonthlyIncome') == 0) else 0.0
-    age = float(data_dict.get('age', 35))
-    dep = float(data_dict.get('NumberOfDependents', 1))
+    eps = 1e-7
+    log_odds = np.log((prob_pd + eps) / (1.0 - prob_pd + eps))
+    fico = int(np.clip(np.round(offset - factor * log_odds), 300, 850))
     
-    eps = 1e-6
-    base_log_odds = np.log((base_pd + eps) / (1 - base_pd + eps))
-    adj_util = 0.50 * (util - 0.25)
-    adj_debt = 0.40 * (debt - 0.35)
-    adj_inc = -0.30 * np.log(np.clip(inc / 6000.0, 0.15, 6.0)) if inc > 0 else 0.25
-    adj_age = -0.15 * ((age - 35.0) / 20.0)
-    adj_dep = 0.08 * (dep - 1.0)
-    
-    total_log_odds = base_log_odds + adj_util + adj_debt + adj_inc + adj_age + adj_dep
-    prob_pd = float(1.0 / (1.0 + np.exp(-total_log_odds)))
-    prob_pd = float(np.clip(prob_pd, 0.001, 0.98))
-    fico = int(np.clip(np.round(offset - factor * total_log_odds), 300, 850))
-    
-    if fico >= 605:
+    if fico >= 600:
         grade = 'Hạng 1 (< 2%)'
     elif fico >= 572:
         grade = 'Hạng 2 (2% - 5%)'
@@ -804,8 +803,8 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
         grade = 'Hạng 5 (> 20%)'
         
     leaf_row = leaf_info.get(leaf_id, {})
-    wilson = leaf_row.get('Wilson CI 95%', f"[{max(0.001, prob_pd*0.85)*100:.2f}%, {min(0.99, prob_pd*1.2)*100:.2f}%]")
-    rule = leaf_row.get('Điều kiện logic (IF - THEN)', 'Cụm nút lá tiêu chuẩn')
+    wilson = leaf_row.get('Wilson CI 95%', f"[{max(0.0001, prob_pd*0.85)*100:.2f}%, {min(0.99, prob_pd*1.2)*100:.2f}%]")
+    rule = leaf_row.get('Điều kiện logic (IF - THEN)', 'Quy tắc nút lá chuẩn hóa từ tập huấn luyện')
     
     prod_cfg = dt_cfg.get(product_code, dt_cfg['CREDIT_CARD'])
     p_params = prod_cfg['params']
@@ -813,70 +812,94 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     lgd = p_params['lgd']
     pd_star = p_params['pd_breakeven']
     
-    net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
-    profit_vnd = loan_amt * net_margin
+    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
+    min_score = active_policy['min_score']
+    allowed_grades = active_policy['allowed_grades']
     
+    inc = float(data_dict.get('MonthlyIncome', 6000.0))
     inc_vnd = inc * 25_000 if inc > 0 else 0
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
-    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
     
-    if dsr_ratio > 0.60 and inc_vnd > 0:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CẢNH BÁO NGHĨA VỤ NỢ DTI)'
-        dec_code = 'CONDITIONAL'
-        reason = f"FICO {fico} ({grade}). Nghĩa vụ góp ({monthly_installment:,.0f} đ/th) chiếm {dsr_ratio*100:.1f}% thu nhập (> 60%). Đề xuất hạ hạn mức."
-    elif grade in active_policy['allowed_grades'] and prob_pd <= pd_star:
-        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED)'
+    # CHÍNH SÁCH 3 VÙNG (3-ZONE ADAPTIVE RISK POLICY)
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
+    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    
+    if is_green:
+        zone = 'GREEN'
+        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
-        reason = f"FICO {fico} đạt chuẩn ({grade}). PD={prob_pd*100:.2f}% < PD*={pd_star*100:.2f}%. Dự kiến biên lãi dương (+{profit_vnd:,.0f} VND)."
-    elif prob_pd <= pd_star:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW)'
+        ead_final = loan_amt
+        net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
+        profit_vnd = ead_final * net_margin
+        reason = f"🟢 VÙNG XANH: FICO {fico} >= {min_score} ({grade}), PD={prob_pd*100:.2f}% <= PD*={pd_star*100:.2f}%. Duyệt cấp 100% hạn mức ({ead_final:,.0f} đ). Lợi nhuận dự kiến: +{profit_vnd:,.0f} đ."
+    elif is_grey:
+        zone = 'GREY'
+        decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
-        reason = f"Hồ sơ thuộc {grade}. PD={prob_pd*100:.2f}% cận biên PD*={pd_star*100:.2f}%. Đề xuất giảm 30% hạn mức hoặc thẩm định bổ sung."
+        ead_final = loan_amt * 0.70  # Giảm 30% hạn mức rủi ro
+        r_grey = 0.17  # Biên lãi suất rủi ro
+        c_fund = 0.04
+        net_r_grey = r_grey - c_fund  # 13%
+        lgd_grey = 0.35  # TSBĐ bổ sung giúp hạ LGD còn 35%
+        net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
+        profit_vnd = ead_final * net_margin
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
     else:
-        decision = 'TỪ CHỐI CẤP TÍN DỤNG (REJECTED)'
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
         dec_code = 'REJECTED'
-        reason = f"Rủi ro vỡ nợ vượt ngưỡng an toàn ({grade}). PD={prob_pd*100:.2f}% > PD*={pd_star*100:.2f}%, dự kiến gây lỗ (-{abs(profit_vnd):,.0f} VND)."
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = f"🔴 VÙNG ĐỎ: Rủi ro vượt ngưỡng an toàn ({grade}, PD={prob_pd*100:.2f}% > {pd_star*100:.2f}%). Từ chối cấp tín dụng nhằm bảo toàn vốn, ngăn ngừa tổn thất nợ xấu."
         
     return {
         'model_name': 'Decision Tree',
         'leaf_id': leaf_id,
         'pd': prob_pd,
-        'base_pd': base_pd,
+        'base_pd': prob_pd,
         'fico': fico,
         'grade': grade,
         'wilson': wilson,
         'rule': rule,
         'decision': decision,
         'dec_code': dec_code,
+        'zone': zone,
+        'ead_final': ead_final,
         'reason': reason,
         'profit_vnd': profit_vnd,
         'pd_star': pd_star,
         'product_name': prod_cfg['product_name'],
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
-        'net_margin': net_margin
+        'net_margin': net_margin if zone != 'RED' else 0.0,
+        'strategic_role': 'Cẩm nang Tác nghiệp Vùng Xám (Playbook IF-THEN minh bạch cho Chuyên viên Tái thẩm định)'
     }
 
 # ==============================================================================
-# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO LOGISTIC REGRESSION (NHẢY MƯỢT LIÊN TỤC)
+# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO LOGISTIC REGRESSION (CHUẨN MỰC TÍNH VỐN BASEL II)
 # ==============================================================================
 def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     if lr_model is None or scaler is None:
         return score_single_customer_dt(data_dict, product_code, market_mode, loan_amt)
         
     df_in = pd.DataFrame([data_dict])
+    delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
+    if 'Has_Code_96_98' not in df_in.columns:
+        df_in['Has_Code_96_98'] = df_in[delinq_cols].isin([96, 98]).any(axis=1).astype(int)
+        for c in delinq_cols:
+            if c in df_in.columns:
+                df_in[c] = df_in[c].replace([96, 98], 0)
+                
     if 'MonthlyIncome_is_missing' not in df_in.columns:
-        if 'MonthlyIncome' in df_in.columns and (pd.isnull(df_in['MonthlyIncome'].iloc[0]) or df_in['MonthlyIncome'].iloc[0] == 0):
-            df_in['MonthlyIncome_is_missing'] = 1
-        else:
-            df_in['MonthlyIncome_is_missing'] = 0
+        df_in['MonthlyIncome_is_missing'] = (df_in['MonthlyIncome'].isna() | (df_in['MonthlyIncome'] <= 0)).astype(int)
             
     for col in FEATURE_COLS:
         if col not in df_in.columns:
             df_in[col] = 0.0
             
-    X_df = df_in[FEATURE_COLS]
+    X_df = df_in[FEATURE_COLS].astype(float)
     X_scaled_df = pd.DataFrame(scaler.transform(X_df), columns=FEATURE_COLS)
     
     prob_pd = float(lr_model.predict_proba(X_scaled_df)[0, 1])
@@ -886,7 +909,7 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     log_odds = np.log((prob_pd + eps) / (1.0 - prob_pd + eps))
     fico = int(np.clip(np.round(offset - factor * log_odds), 300, 850))
     
-    if fico >= 605:
+    if fico >= 600:
         grade = 'Hạng 1 (< 2%)'
     elif fico >= 572:
         grade = 'Hạng 2 (2% - 5%)'
@@ -903,41 +926,57 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     lgd = p_params['lgd']
     pd_star = p_params['pd_breakeven']
     
-    net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
-    profit_vnd = loan_amt * net_margin
+    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
+    min_score = active_policy['min_score']
+    allowed_grades = active_policy['allowed_grades']
     
     inc = float(data_dict.get('MonthlyIncome', 6000.0))
     inc_vnd = inc * 25_000 if inc > 0 else 0
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
-    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
-    min_score = active_policy['min_score']
-    allowed_grades = active_policy['allowed_grades']
     
-    if dsr_ratio > 0.60 and inc_vnd > 0:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CẢNH BÁO NGHĨA VỤ NỢ DTI)'
-        dec_code = 'CONDITIONAL'
-        reason = f"Điểm FICO {fico} ({grade}). Tuy nhiên nghĩa vụ nợ chiếm {dsr_ratio*100:.1f}% thu nhập (> 60%). Đề xuất giảm hạn mức."
-    elif (fico >= min_score) and (grade in allowed_grades) and (prob_pd <= pd_star):
-        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED)'
+    # CHÍNH SÁCH 3 VÙNG
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
+    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    
+    if is_green:
+        zone = 'GREEN'
+        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
-        reason = f"Điểm FICO {fico} >= {min_score} chuẩn ({grade}). PD={prob_pd*100:.2f}% < PD*={pd_star*100:.2f}%. Dự kiến mang lại biên lãi thuần dương (+{profit_vnd:,.0f} VND)."
-    elif prob_pd <= pd_star:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW)'
+        ead_final = loan_amt
+        net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
+        profit_vnd = ead_final * net_margin
+        reason = f"🟢 VÙNG XANH: FICO {fico} >= {min_score} ({grade}), PD={prob_pd*100:.2f}% <= PD*={pd_star*100:.2f}%. Duyệt cấp 100% hạn mức ({ead_final:,.0f} đ). Lợi nhuận dự kiến: +{profit_vnd:,.0f} đ."
+    elif is_grey:
+        zone = 'GREY'
+        decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
-        reason = f"Điểm FICO {fico} tiệm cận ngưỡng hòa vốn ({pd_star*100:.2f}%). Đề xuất giảm 30% hạn mức hoặc thẩm định bổ sung nguồn thu."
+        ead_final = loan_amt * 0.70
+        r_grey = 0.17
+        c_fund = 0.04
+        net_r_grey = r_grey - c_fund  # 13%
+        lgd_grey = 0.35
+        net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
+        profit_vnd = ead_final * net_margin
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
     else:
-        decision = 'TỪ CHỐI CẤP TÍN DỤNG (REJECTED)'
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
         dec_code = 'REJECTED'
-        reason = f"Xác suất vỡ nợ PD={prob_pd*100:.2f}% vượt ngưỡng an toàn PD*={pd_star*100:.2f}%, gây tổn thất dự kiến (-{abs(profit_vnd):,.0f} VND)."
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = f"🔴 VÙNG ĐỎ: Rủi ro vượt ngưỡng an toàn ({grade}, PD={prob_pd*100:.2f}% > {pd_star*100:.2f}%). Từ chối cấp tín dụng nhằm bảo toàn vốn, ngăn ngừa nợ xấu."
         
     top_driver = "Đòn bẩy thẻ tín dụng & Lịch sử quá hạn"
-    if 'RevolvingUtilizationOfUnsecuredLines' in X_df.columns and X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0] > 0.6:
-        top_driver = "Tỷ lệ sử dụng hạn mức thẻ tín dụng cao"
-    elif 'NumberOfTimes90DaysLate' in X_df.columns and X_df['NumberOfTimes90DaysLate'].iloc[0] > 0:
-        top_driver = "Có nợ quá hạn nghiêm trọng >= 90 ngày"
-    elif 'MonthlyIncome' in X_df.columns and X_df['MonthlyIncome'].iloc[0] > 8000:
-        top_driver = "Nguồn thu nhập mạnh mẽ và ổn định"
+    if X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0] > 0.6:
+        top_driver = "Tỷ lệ sử dụng hạn mức thẻ tín dụng cao (> 60%)"
+    elif X_df['NumberOfTimes90DaysLate'].iloc[0] > 0:
+        top_driver = "Có lịch sử nợ quá hạn nghiêm trọng >= 90 ngày"
+    elif X_df['Has_Code_96_98'].iloc[0] > 0:
+        top_driver = "Kích hoạt mã cảnh báo hệ thống 96/98 (CIC)"
+    elif X_df['MonthlyIncome'].iloc[0] > 8000:
+        top_driver = "Nguồn thu nhập mạnh mẽ bảo đảm nguồn trả nợ"
 
     return {
         'model_name': 'Logistic Regression',
@@ -948,28 +987,35 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
         'top_driver': top_driver,
         'decision': decision,
         'dec_code': dec_code,
+        'zone': zone,
+        'ead_final': ead_final,
         'reason': reason,
         'profit_vnd': profit_vnd,
         'pd_star': pd_star,
         'product_name': prod_cfg['product_name'],
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
-        'net_margin': net_margin
+        'net_margin': net_margin if zone != 'RED' else 0.0,
+        'strategic_role': 'Trụ cột Pháp lý & Tính Vốn Tối thiểu CAR theo chuẩn Basel II Pillar 1 & 2'
     }
 
 # ==============================================================================
-# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO XGBOOST (GRADIENT BOOSTING - CHÍNH XÁC CAO NHẤT)
+# HÀM TÍNH TOÁN CHẤM ĐIỂM CHO XGBOOST (ĐỘNG CƠ PHÊ DUYỆT SIÊU TỐC KÊNH SỐ)
 # ==============================================================================
 def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
     if xgb_model is None:
         return score_single_customer_lr(data_dict, product_code, market_mode, loan_amt)
         
     df_in = pd.DataFrame([data_dict])
+    delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
+    if 'Has_Code_96_98' not in df_in.columns:
+        df_in['Has_Code_96_98'] = df_in[delinq_cols].isin([96, 98]).any(axis=1).astype(int)
+        for c in delinq_cols:
+            if c in df_in.columns:
+                df_in[c] = df_in[c].replace([96, 98], 0)
+                
     if 'MonthlyIncome_is_missing' not in df_in.columns:
-        if 'MonthlyIncome' in df_in.columns and (pd.isnull(df_in['MonthlyIncome'].iloc[0]) or df_in['MonthlyIncome'].iloc[0] == 0):
-            df_in['MonthlyIncome_is_missing'] = 1.0
-        else:
-            df_in['MonthlyIncome_is_missing'] = 0.0
+        df_in['MonthlyIncome_is_missing'] = (df_in['MonthlyIncome'].isna() | (df_in['MonthlyIncome'] <= 0)).astype(int)
             
     for col in FEATURE_COLS:
         if col not in df_in.columns:
@@ -984,7 +1030,7 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
     log_odds = float(np.log((prob_pd + eps) / (1.0 - prob_pd + eps)))
     fico = int(np.clip(np.round(offset - factor * log_odds), 300, 850))
     
-    if fico >= 605:
+    if fico >= 600:
         grade = 'Hạng 1 (< 2%)'
     elif fico >= 572:
         grade = 'Hạng 2 (2% - 5%)'
@@ -1001,42 +1047,58 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
     lgd = p_params['lgd']
     pd_star = p_params['pd_breakeven']
     
-    net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
-    profit_vnd = loan_amt * net_margin
+    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
+    min_score = active_policy['min_score']
+    allowed_grades = active_policy['allowed_grades']
     
     inc = float(data_dict.get('MonthlyIncome', 6000.0))
     inc_vnd = inc * 25_000 if inc > 0 else 0
     monthly_installment = (loan_amt * (1.0 + p_params['r'] * 3.0)) / 36.0
     dsr_ratio = (monthly_installment / inc_vnd) if inc_vnd > 0 else 1.0
-    active_policy = prod_cfg['policies'].get(market_mode, prod_cfg['policies']['NORMAL'])
-    min_score = active_policy['min_score']
-    allowed_grades = active_policy['allowed_grades']
     
-    if dsr_ratio > 0.60 and inc_vnd > 0:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CẢNH BÁO NGHĨA VỤ NỢ DTI)'
-        dec_code = 'CONDITIONAL'
-        reason = f"Điểm FICO {fico} ({grade}). Tuy nhiên nghĩa vụ nợ chiếm {dsr_ratio*100:.1f}% thu nhập (> 60%). Đề xuất giảm hạn mức."
-    elif (fico >= min_score) and (grade in allowed_grades) and (prob_pd <= pd_star):
-        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED)'
+    # CHÍNH SÁCH 3 VÙNG
+    is_green = (prob_pd <= pd_star) and (fico >= min_score) and (grade in allowed_grades) and (dsr_ratio <= 0.60 or inc_vnd == 0)
+    is_grey = (not is_green) and (prob_pd <= min(0.20, 1.5 * pd_star)) and (fico >= 500)
+    
+    if is_green:
+        zone = 'GREEN'
+        decision = 'PHÊ DUYỆT TỰ ĐỘNG (AUTO-APPROVED - VÙNG XANH)'
         dec_code = 'APPROVED'
-        reason = f"Điểm FICO {fico} >= {min_score} chuẩn ({grade}). PD={prob_pd*100:.2f}% < PD*={pd_star*100:.2f}%. Dự kiến mang lại biên lãi thuần dương (+{profit_vnd:,.0f} VND)."
-    elif prob_pd <= pd_star:
-        decision = 'DUYỆT CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW)'
+        ead_final = loan_amt
+        net_margin = (1.0 - prob_pd) * net_r - prob_pd * lgd
+        profit_vnd = ead_final * net_margin
+        reason = f"🟢 VÙNG XANH: FICO {fico} >= {min_score} ({grade}), PD={prob_pd*100:.2f}% <= PD*={pd_star*100:.2f}%. Duyệt cấp 100% hạn mức ({ead_final:,.0f} đ). Lợi nhuận dự kiến: +{profit_vnd:,.0f} đ."
+    elif is_grey:
+        zone = 'GREY'
+        decision = 'TÁI THẨM ĐỊNH CÓ ĐIỀU KIỆN (CONDITIONAL REVIEW - VÙNG XÁM)'
         dec_code = 'CONDITIONAL'
-        reason = f"Điểm FICO {fico} tiệm cận ngưỡng hòa vốn ({pd_star*100:.2f}%). Đề xuất giảm 30% hạn mức hoặc thẩm định bổ sung nguồn thu."
+        ead_final = loan_amt * 0.70
+        r_grey = 0.17
+        c_fund = 0.04
+        net_r_grey = r_grey - c_fund  # 13%
+        lgd_grey = 0.35
+        net_margin = (1.0 - prob_pd) * net_r_grey - prob_pd * lgd_grey
+        profit_vnd = ead_final * net_margin
+        reason = f"🟡 VÙNG XÁM: FICO {fico} ({grade}), PD={prob_pd*100:.2f}% tiệm cận ngưỡng hòa vốn. Giải cứu có điều kiện: Cấp 70% hạn mức ({ead_final:,.0f} đ), bổ sung TSBĐ (LGD hạ còn 35%), lãi suất rủi ro 17%. Lợi nhuận kỳ vọng: +{profit_vnd:,.0f} đ."
     else:
-        decision = 'TỪ CHỐI CẤP TÍN DỤNG (REJECTED)'
+        zone = 'RED'
+        decision = 'TỪ CHỐI CẤP TÍN DỤNG (AUTO-REJECTED - VÙNG ĐỎ)'
         dec_code = 'REJECTED'
-        reason = f"Xác suất vỡ nợ PD={prob_pd*100:.2f}% vượt ngưỡng an toàn PD*={pd_star*100:.2f}%, gây tổn thất dự kiến (-{abs(profit_vnd):,.0f} VND)."
+        ead_final = 0
+        net_margin = 0.0
+        profit_vnd = 0
+        reason = f"🔴 VÙNG ĐỎ: Rủi ro vượt ngưỡng an toàn ({grade}, PD={prob_pd*100:.2f}% > {pd_star*100:.2f}%). Từ chối cấp tín dụng nhằm bảo toàn vốn, ngăn ngừa tổn thất nợ xấu."
         
     top_driver = "Đòn bẩy thẻ tín dụng & Lịch sử trả nợ"
-    if 'NumberOfTimes90DaysLate' in X_df.columns and X_df['NumberOfTimes90DaysLate'].iloc[0] > 0:
+    if X_df['NumberOfTimes90DaysLate'].iloc[0] > 0:
         top_driver = f"Quá hạn nghiêm trọng >= 90 ngày ({int(X_df['NumberOfTimes90DaysLate'].iloc[0])} lần) - SHAP tác động tiêu cực lớn"
-    elif 'RevolvingUtilizationOfUnsecuredLines' in X_df.columns and X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0] > 0.6:
+    elif X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0] > 0.6:
         top_driver = f"Tỷ lệ sử dụng hạn mức cao ({X_df['RevolvingUtilizationOfUnsecuredLines'].iloc[0]*100:.1f}%) - SHAP đòn bẩy rủi ro"
-    elif 'NumberOfTime30-59DaysPastDueNotWorse' in X_df.columns and X_df['NumberOfTime30-59DaysPastDueNotWorse'].iloc[0] > 0:
+    elif X_df['Has_Code_96_98'].iloc[0] > 0:
+        top_driver = "Cờ cảnh báo mã lỗi 96/98 - SHAP nâng mức phạt rủi ro"
+    elif X_df['NumberOfTime30-59DaysPastDueNotWorse'].iloc[0] > 0:
         top_driver = f"Lịch sử chậm thanh toán 30-59 ngày ({int(X_df['NumberOfTime30-59DaysPastDueNotWorse'].iloc[0])} lần)"
-    elif 'MonthlyIncome' in X_df.columns and X_df['MonthlyIncome'].iloc[0] > 8000:
+    elif X_df['MonthlyIncome'].iloc[0] > 8000:
         top_driver = "Nguồn thu nhập mạnh mẽ bảo chứng khả năng trả nợ (SHAP tích cực)"
 
     return {
@@ -1048,13 +1110,16 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
         'top_driver': top_driver,
         'decision': decision,
         'dec_code': dec_code,
+        'zone': zone,
+        'ead_final': ead_final,
         'reason': reason,
         'profit_vnd': profit_vnd,
         'pd_star': pd_star,
         'product_name': prod_cfg['product_name'],
         'dsr_ratio': dsr_ratio,
         'monthly_installment': monthly_installment,
-        'net_margin': net_margin
+        'net_margin': net_margin if zone != 'RED' else 0.0,
+        'strategic_role': 'Động cơ Phê duyệt Siêu tốc Kênh Số (Digital Real-time Underwriting Engine)'
     }
 
 # ==============================================================================
@@ -1138,8 +1203,8 @@ def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_item
     elements.append(t_fin)
     elements.append(Spacer(1, 4))
 
-    # 4. Bảng 11 Đặc trưng đầu vào (Basel II Features)
-    elements.append(Paragraph("III. DANH SÁCH 11 ĐẶC TRƯNG CHẤM ĐIỂM (BASEL II INPUT FEATURES)", sec_hdr))
+    # 4. Bảng 12 Đặc trưng đầu vào (Basel II / IFRS 9 Features)
+    elements.append(Paragraph("III. DANH SÁCH 12 ĐẶC TRƯNG CHẤM ĐIỂM (BASEL II / IFRS 9 INPUT FEATURES)", sec_hdr))
     elements.append(Spacer(1, 2))
     
     feat_rows = [
@@ -1154,9 +1219,9 @@ def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_item
         [Paragraph("4. Tỷ số nợ trên thu nhập (DebtRatio)", c_txt), Paragraph(f"{features_dict.get('DebtRatio', 0):.4f}", c_bold),
          Paragraph("10. Số người phụ thuộc", c_txt), Paragraph(f"{features_dict.get('NumberOfDependents', 0)} người", c_bold)],
         [Paragraph("5. Thu nhập tháng (Model Scale)", c_txt), Paragraph(f"{features_dict.get('MonthlyIncome', 0):,.1f} USD (~{financial_details.get('total_income_vnd', 0):,.0f}đ)", c_bold),
-         Paragraph("11. Cờ khuyết thu nhập gốc", c_txt), Paragraph("Không khuyết (0)" if features_dict.get('MonthlyIncome_is_missing', 0)==0 else "Có khuyết (1)", c_bold)],
+         Paragraph("11. Cờ khuyết thu nhập gốc", c_txt), Paragraph("Không khuyết (0)" if features_dict.get('MonthlyIncome_is_missing', 0)==0 else "Khuyết - Ước lượng Ridge (1)", c_bold)],
         [Paragraph("6. Số hạn mức/khoản vay đang mở", c_txt), Paragraph(f"{features_dict.get('NumberOfOpenCreditLinesAndLoans', 0)} tài khoản", c_bold),
-         Paragraph("— Tình trạng nghĩa vụ nợ DSR", c_txt), Paragraph("Đạt chuẩn (<=60%)" if financial_details.get('dsr_pct', 0)<=60 else "Cảnh báo (>60%)", c_bold)]
+         Paragraph("12. Cờ cảnh báo lỗi CIC 96/98", c_txt), Paragraph("Bình thường (0)" if features_dict.get('Has_Code_96_98', 0)==0 else "CẢNH BÁO MÃ 96/98 (1)", c_bold)]
     ]
     t_feat = Table(feat_rows, colWidths=[140, 125, 140, 125])
     t_feat.setStyle(TableStyle([
@@ -1448,13 +1513,13 @@ with active_tabs[0]:
     st.markdown("### 📋 Thẩm Định Hồ Sơ Khách Hàng & Năng Lực Tài Chính Toàn Diện")
     
     # Preset nạp nhanh hồ sơ mẫu
-    st.caption("⚡ **NẠP NHANH HỒ SƠ MẪU ĐỂ KIỂM THỬ KHẢ NĂNG PHÂN TÁCH & QUY TẮC TÍNH TOÁN 4 FEATURE:**")
-    sc_c1, sc_c2, sc_c3 = st.columns(3)
+    st.caption("⚡ **NẠP NHANH HỒ SƠ MẪU ĐỂ KIỂM THỬ KHẢ NĂNG PHÂN TÁCH & QUY TẮC 3 VÙNG (GREEN / GREY / RED):**")
+    sc_c1, sc_c2, sc_c3, sc_c4 = st.columns(4)
     if 'cust_preset' not in st.session_state:
         st.session_state.cust_preset = 'good'
         
     with sc_c1:
-        if st.button("🟢 Mẫu Khách Hàng Tốt (Hạng 1 - Duyệt Tự Động)", use_container_width=True):
+        if st.button("🟢 Vùng Xanh (Duyệt Tự Động)", use_container_width=True):
             st.session_state.cust_preset = 'good'
             st.session_state.card_rows = [
                 {'card_id': 'CARD-01', 'bank': 'Vietcombank (VCB)', 'name': 'Thẻ Visa Signature', 'limit': 80_000_000, 'balance': 8_000_000, 'status': 'OPEN'},
@@ -1466,7 +1531,7 @@ with active_tabs[0]:
             ]
             st.rerun()
     with sc_c2:
-        if st.button("🟡 Mẫu Khách Hàng Tiệm Cận (Hạng 3 - Xem Xét Có Điều Kiện)", use_container_width=True):
+        if st.button("🟡 Vùng Xám (Tái Thẩm Định)", use_container_width=True):
             st.session_state.cust_preset = 'medium'
             st.session_state.card_rows = [
                 {'card_id': 'CARD-01', 'bank': 'VPBank (VPB)', 'name': 'Thẻ StepUp Visa', 'limit': 40_000_000, 'balance': 26_000_000, 'status': 'OPEN'},
@@ -1478,7 +1543,7 @@ with active_tabs[0]:
             ]
             st.rerun()
     with sc_c3:
-        if st.button("🔴 Mẫu Khách Hàng Rủi Ro (Hạng 5 - Từ Chối Thẳng)", use_container_width=True):
+        if st.button("🔴 Vùng Đỏ (Từ Chối Thẳng)", use_container_width=True):
             st.session_state.cust_preset = 'bad'
             st.session_state.card_rows = [
                 {'card_id': 'CARD-01', 'bank': 'VPBank (VPB)', 'name': 'Thẻ MC2 MasterCard', 'limit': 20_000_000, 'balance': 19_500_000, 'status': 'OPEN'},
@@ -1487,6 +1552,16 @@ with active_tabs[0]:
             st.session_state.loan_rows = [
                 {'loan_id': 'LOAN-01', 'bank': 'HDBank (HDB)', 'name': 'Vay tiêu dùng tín chấp HD Saison', 'loan_type': 'OTHER', 'disburse_date': datetime.date(2024, 1, 15), 'mature_date': datetime.date(2026, 1, 15), 'balance': 45_000_000, 'interest_rate': 22.0, 'status': 'OPEN'},
                 {'loan_id': 'LOAN-02', 'bank': 'SHB', 'name': 'Vay mua xe máy', 'loan_type': 'OTHER', 'disburse_date': datetime.date(2023, 8, 10), 'mature_date': datetime.date(2025, 8, 10), 'balance': 18_000_000, 'interest_rate': 18.0, 'status': 'OPEN'}
+            ]
+            st.rerun()
+    with sc_c4:
+        if st.button("⚙️ Ý Tưởng 2 (Mã 96/98 & Khuyết Thu Nhập)", use_container_width=True):
+            st.session_state.cust_preset = 'anomaly'
+            st.session_state.card_rows = [
+                {'card_id': 'CARD-01', 'bank': 'BIDV', 'name': 'Thẻ Tín Dụng Quốc Tế', 'limit': 50_000_000, 'balance': 12_000_000, 'status': 'OPEN'}
+            ]
+            st.session_state.loan_rows = [
+                {'loan_id': 'LOAN-01', 'bank': 'Agribank', 'name': 'Vay sản xuất nông nghiệp', 'loan_type': 'OTHER', 'disburse_date': datetime.date(2022, 3, 1), 'mature_date': datetime.date(2025, 3, 1), 'balance': 80_000_000, 'interest_rate': 10.0, 'status': 'OPEN'}
             ]
             st.rerun()
             
@@ -1501,11 +1576,16 @@ with active_tabs[0]:
         p_age, p_dep = 42, 2
         p_salary, p_rental, p_biz, p_other = 22_000_000, 0, 6_000_000, 0
         p_late90, p_late60, p_late30 = 0, 0, 1
-    else: # bad
+    elif st.session_state.cust_preset == 'bad':
         p_name = "Lê Tuấn Kiệt"
         p_age, p_dep = 28, 0
         p_salary, p_rental, p_biz, p_other = 10_000_000, 0, 0, 0
         p_late90, p_late60, p_late30 = 2, 1, 2
+    else: # anomaly
+        p_name = "Hoàng Trọng Nghĩa"
+        p_age, p_dep = 46, 2
+        p_salary, p_rental, p_biz, p_other = 0, 0, 0, 0 # Khuyết thu nhập hoàn toàn
+        p_late90, p_late60, p_late30 = 98, 0, 0 # Kích hoạt mã hệ thống 98
 
     st.markdown("---")
     
@@ -1534,11 +1614,11 @@ with active_tabs[0]:
         """, unsafe_allow_html=True)
         col_l1, col_l2, col_l3 = st.columns(3)
         with col_l1:
-            late_90 = st.number_input("Quá hạn >= 90 ngày:", min_value=0, max_value=20, value=p_late90, step=1, key=f"l90_{st.session_state.cust_preset}", help="Chỉ số quan trọng số 1: Quá hạn >= 90 ngày kéo FICO tụt dốc")
+            late_90 = st.number_input("Quá hạn >= 90 ngày (nhập 96/98 nếu có mã CIC):", min_value=0, max_value=98, value=p_late90, step=1, key=f"l90_{st.session_state.cust_preset}", help="Chỉ số quan trọng số 1: Quá hạn >= 90 ngày kéo FICO tụt dốc")
         with col_l2:
-            late_60_89 = st.number_input("Quá hạn 60-89 ngày:", min_value=0, max_value=20, value=p_late60, step=1, key=f"l60_{st.session_state.cust_preset}")
+            late_60_89 = st.number_input("Quá hạn 60-89 ngày:", min_value=0, max_value=98, value=p_late60, step=1, key=f"l60_{st.session_state.cust_preset}")
         with col_l3:
-            late_30_59 = st.number_input("Quá hạn 30-59 ngày:", min_value=0, max_value=20, value=p_late30, step=1, key=f"l30_{st.session_state.cust_preset}")
+            late_30_59 = st.number_input("Quá hạn 30-59 ngày:", min_value=0, max_value=98, value=p_late30, step=1, key=f"l30_{st.session_state.cust_preset}")
 
     st.markdown("---")
     
@@ -1924,19 +2004,27 @@ with active_tabs[0]:
     </div>
     ''', unsafe_allow_html=True)
 
-    # Đóng gói 11 đặc trưng hoàn chỉnh truyền trực tiếp vào 3 mô hình Machine Learning
+    # Bóc tách cờ cảnh báo mã lỗi hệ thống 96/98 và chuyển giá trị về 0 theo chuẩn Ý tưởng 2
+    raw_delinqs = [late_30_59, late_60_89, late_90]
+    has_code_96_98 = 1 if any(v in [96, 98] for v in raw_delinqs) else 0
+    clean_30_59 = 0 if late_30_59 in [96, 98] else late_30_59
+    clean_60_89 = 0 if late_60_89 in [96, 98] else late_60_89
+    clean_90 = 0 if late_90 in [96, 98] else late_90
+
+    # Đóng gói 12 đặc trưng hoàn chỉnh truyền trực tiếp vào 3 mô hình Machine Learning chuẩn Basel II / IFRS 9
     customer_features_payload = {
         'RevolvingUtilizationOfUnsecuredLines': ru_val,
         'age': cust_age,
-        'NumberOfTime30-59DaysPastDueNotWorse': late_30_59,
+        'NumberOfTime30-59DaysPastDueNotWorse': clean_30_59,
         'DebtRatio': dr_val,
         'MonthlyIncome': cust_income_model,
         'NumberOfOpenCreditLinesAndLoans': int(n_open),
-        'NumberOfTimes90DaysLate': late_90,
+        'NumberOfTimes90DaysLate': clean_90,
         'NumberRealEstateLoansOrLines': int(n_re),
-        'NumberOfTime60-89DaysPastDueNotWorse': late_60_89,
+        'NumberOfTime60-89DaysPastDueNotWorse': clean_60_89,
         'NumberOfDependents': cust_dependents,
-        'MonthlyIncome_is_missing': 1 if cust_income_model <= 0 else 0
+        'MonthlyIncome_is_missing': 1 if cust_income_model <= 0 else 0,
+        'Has_Code_96_98': has_code_96_98
     }
 
     # Đóng gói thông tin tài chính chi tiết phục vụ PDF và DSR
@@ -2340,32 +2428,44 @@ if 'batch' in user['allowed_tabs']:
                     
                 st.success(f"✓ Đã nạp thành công **{len(batch_df):,}** hồ sơ khách hàng!")
                 
+                # Tự động tiền xử lý dữ liệu thô chuẩn Ý tưởng 2
+                if 'Has_Code_96_98' not in batch_df.columns or 'MonthlyIncome_is_missing' not in batch_df.columns:
+                    st.info("ℹ️ File đầu vào là dữ liệu thô: Hệ thống tự động kích hoạt Module Tiền xử lý (Zero Data Leakage, Ridge Two-Stage Imputation, Cờ cảnh báo 96/98)...")
+                    proc_batch_df = preprocessing.apply_preprocessor(batch_df, prep_params)
+                else:
+                    proc_batch_df = batch_df.copy()
+
                 if st.button("🚀 Bắt Đầu Chấm Điểm Toàn Bộ Danh Mục Bằng Cả 3 Mô Hình", type="primary"):
-                    with st.spinner("Đang tính toán FICO, PD và Lợi nhuận dự kiến song song 3 mô hình..."):
+                    with st.spinner("Đang tính toán FICO, PD và Phân loại 3 Vùng (Green/Grey/Red) song song 3 mô hình..."):
                         res_list = []
-                        for idx, row in batch_df.iterrows():
-                            c_dict = row.to_dict()
-                            l_amt = row.get('Loan_Amount_VND', loan_amount)
-                            eval_dt = score_single_customer_dt(c_dict, product_code, market_mode, l_amt)
-                            eval_lr = score_single_customer_lr(c_dict, product_code, market_mode, l_amt)
-                            eval_xgb = score_single_customer_xgb(c_dict, product_code, market_mode, l_amt)
+                        for idx in range(len(batch_df)):
+                            row_orig = batch_df.iloc[idx].to_dict()
+                            row_proc = proc_batch_df.iloc[idx].to_dict()
+                            l_amt = row_orig.get('Loan_Amount_VND', loan_amount)
+                            
+                            eval_dt = score_single_customer_dt(row_proc, product_code, market_mode, l_amt)
+                            eval_lr = score_single_customer_lr(row_proc, product_code, market_mode, l_amt)
+                            eval_xgb = score_single_customer_xgb(row_proc, product_code, market_mode, l_amt)
                             
                             res_list.append({
                                 'STT': idx + 1,
                                 'FICO_Tree': eval_dt['fico'],
                                 'Grade_Tree': eval_dt['grade'],
                                 'PD_Tree_%': round(eval_dt['pd'] * 100, 2),
+                                'Zone_Tree': eval_dt['zone'],
                                 'Decision_Tree': eval_dt['decision'],
+                                'Profit_Tree_VND': eval_dt['profit_vnd'],
                                 'FICO_Logistic': eval_lr['fico'],
                                 'Grade_Logistic': eval_lr['grade'],
                                 'PD_Logistic_%': round(eval_lr['pd'] * 100, 2),
+                                'Zone_Logistic': eval_lr['zone'],
                                 'Decision_Logistic': eval_lr['decision'],
+                                'Profit_Logistic_VND': eval_lr['profit_vnd'],
                                 'FICO_XGBoost': eval_xgb['fico'],
                                 'Grade_XGBoost': eval_xgb['grade'],
                                 'PD_XGBoost_%': round(eval_xgb['pd'] * 100, 2),
+                                'Zone_XGBoost': eval_xgb['zone'],
                                 'Decision_XGBoost': eval_xgb['decision'],
-                                'Profit_Tree_VND': eval_dt['profit_vnd'],
-                                'Profit_Logistic_VND': eval_lr['profit_vnd'],
                                 'Profit_XGBoost_VND': eval_xgb['profit_vnd']
                             })
                             
@@ -2373,17 +2473,36 @@ if 'batch' in user['allowed_tabs']:
                         
                         km1, km2, km3, km4 = st.columns(4)
                         km1.metric("Tổng Số Hồ Sơ", f"{len(result_batch_df):,}")
-                        appr_count_dt = (result_batch_df['Decision_Tree'].str.contains('PHÊ DUYỆT')).sum()
-                        km2.metric("Tỷ Lệ Duyệt (Tree)", f"{appr_count_dt/len(result_batch_df)*100:.1f}%")
-                        appr_count_lr = (result_batch_df['Decision_Logistic'].str.contains('PHÊ DUYỆT')).sum()
-                        km3.metric("Tỷ Lệ Duyệt (Logistic)", f"{appr_count_lr/len(result_batch_df)*100:.1f}%")
-                        appr_count_xgb = (result_batch_df['Decision_XGBoost'].str.contains('PHÊ DUYỆT')).sum()
-                        km4.metric("Tỷ Lệ Duyệt (XGBoost)", f"{appr_count_xgb/len(result_batch_df)*100:.1f}%")
                         
-                        st.dataframe(result_batch_df.head(10), use_container_width=True)
+                        green_dt = (result_batch_df['Zone_Tree'] == 'GREEN').sum()
+                        grey_dt = (result_batch_df['Zone_Tree'] == 'GREY').sum()
+                        appr_dt = green_dt + grey_dt
+                        km2.metric("Tỷ Lệ Duyệt (Tree)", f"{appr_dt/len(result_batch_df)*100:.1f}%", f"Xanh: {green_dt/len(result_batch_df)*100:.1f}% | Xám: {grey_dt/len(result_batch_df)*100:.1f}%")
+                        
+                        green_lr = (result_batch_df['Zone_Logistic'] == 'GREEN').sum()
+                        grey_lr = (result_batch_df['Zone_Logistic'] == 'GREY').sum()
+                        appr_lr = green_lr + grey_lr
+                        km3.metric("Tỷ Lệ Duyệt (Logistic)", f"{appr_lr/len(result_batch_df)*100:.1f}%", f"Xanh: {green_lr/len(result_batch_df)*100:.1f}% | Xám: {grey_lr/len(result_batch_df)*100:.1f}%")
+                        
+                        green_xgb = (result_batch_df['Zone_XGBoost'] == 'GREEN').sum()
+                        grey_xgb = (result_batch_df['Zone_XGBoost'] == 'GREY').sum()
+                        appr_xgb = green_xgb + grey_xgb
+                        km4.metric("Tỷ Lệ Duyệt (XGBoost)", f"{appr_xgb/len(result_batch_df)*100:.1f}%", f"Xanh: {green_xgb/len(result_batch_df)*100:.1f}% | Xám: {grey_xgb/len(result_batch_df)*100:.1f}%")
+                        
+                        tot_prof_dt = result_batch_df['Profit_Tree_VND'].sum() / 1e9
+                        tot_prof_lr = result_batch_df['Profit_Logistic_VND'].sum() / 1e9
+                        tot_prof_xgb = result_batch_df['Profit_XGBoost_VND'].sum() / 1e9
+                        
+                        st.markdown("##### 💰 Tổng Lợi Nhuận Dự Kiến Toàn Danh Mục (P&L 3 Vùng):")
+                        lp1, lp2, lp3 = st.columns(3)
+                        lp1.metric("Lợi Nhuận (Cây Quyết Định)", f"{tot_prof_dt:+,.2f} Tỷ VND")
+                        lp2.metric("Lợi Nhuận (Hồi Quy Logistic)", f"{tot_prof_lr:+,.2f} Tỷ VND")
+                        lp3.metric("Lợi Nhuận (Monotonic XGBoost)", f"{tot_prof_xgb:+,.2f} Tỷ VND")
+                        
+                        st.dataframe(result_batch_df.head(15), use_container_width=True)
                         
                         res_csv = result_batch_df.to_csv(index=False).encode('utf-8')
-                        st.download_button("📥 Tải Xuất Kết Quả 3 Mô Hình (.CSV)", data=res_csv, file_name=f"Ket_Qua_Cham_Diem_Danh_Muc_3_Mo_Hinh_{market_mode}.csv", mime="text/csv")
+                        st.download_button("📥 Tải Xuất Kết Quả 3 Mô Hình Kèm Phân Vùng 3 Vùng (.CSV)", data=res_csv, file_name=f"Ket_Qua_Cham_Diem_Danh_Muc_3_Vung_3_Mo_Hinh_{market_mode}.csv", mime="text/csv")
             except Exception as e:
                 st.error(f"Lỗi khi xử lý file: {e}")
 
@@ -2489,6 +2608,17 @@ if 'policy' in user['allowed_tabs']:
         ]
         st.dataframe(pd.DataFrame(opt_data), use_container_width=True, hide_index=True)
 
+        st.markdown("---")
+        st.markdown("##### 💵 ĐƠN GIÁ LÃI/LỖ KINH TẾ VI MÔ VÀ CƠ CHẾ DÒNG TIỀN P&L TRÊN TỪNG HỒ SƠ (UNIT ECONOMICS)")
+        st.write("Cơ sở hạch toán dòng tiền vi mô trên hạn mức cấp tín dụng cơ sở **100.000.000 VNĐ** theo chuẩn Basel II:")
+        unit_econ_df = pd.DataFrame([
+            {'Vùng Thẩm định': '🟢 Vùng Xanh (Duyệt Thẳng)', 'Hạn mức Cấp (EAD)': '100.000.000 VNĐ (100%)', 'Lãi suất r (%)': '14.0%', 'Chi phí vốn c (%)': '4.0%', 'Tỷ lệ Tổn thất LGD (%)': '75.0% (Tín chấp)', 'Lợi nhuận Khách Tốt (y=0)': '+10.000.000 VNĐ', 'Tổn thất Khách Xấu (y=1)': '-75.000.000 VNĐ'},
+            {'Vùng Thẩm định': '🟡 Vùng Xám (Tái Thẩm Định)', 'Hạn mức Cấp (EAD)': '70.000.000 VNĐ (70%)', 'Lãi suất r (%)': '17.0% (Bù rủi ro)', 'Chi phí vốn c (%)': '4.0%', 'Tỷ lệ Tổn thất LGD (%)': '35.0% (Có TSBĐ)', 'Lợi nhuận Khách Tốt (y=0)': '+9.100.000 VNĐ', 'Tổn thất Khách Xấu (y=1)': '-24.500.000 VNĐ'},
+            {'Vùng Thẩm định': '🔴 Vùng Đỏ (Từ Chối)', 'Hạn mức Cấp (EAD)': '0 VNĐ (0%)', 'Lãi suất r (%)': '0.0%', 'Chi phí vốn c (%)': '0.0%', 'Tỷ lệ Tổn thất LGD (%)': '0.0%', 'Lợi nhuận Khách Tốt (y=0)': '0 VNĐ', 'Tổn thất Khách Xấu (y=1)': '0 VNĐ (Bảo toàn vốn)'}
+        ])
+        st.dataframe(unit_econ_df, use_container_width=True, hide_index=True)
+        st.caption("💡 **Ghi chú tính toán:** Nhờ cơ chế hạ 30% hạn mức và bổ sung TSBĐ, Vùng Xám giúp giảm tới **67,3% mức độ tổn thất** khi khách hàng vỡ nợ (từ -75tr xuống -24.5tr), đồng thời bảo toàn mức sinh lời dương +9.1tr cho khách hàng tốt, mang lại tăng trưởng lợi nhuận ròng toàn hàng từ **+13.46% đến +26.30%**.")
+
 # ==============================================================================
 # TAB 4: BÁO CÁO GIÁM SÁT BASEL II & KIỂM TOÁN ĐA MÔ HÌNH (TRIPLE-MODEL AUDIT)
 # ==============================================================================
@@ -2498,10 +2628,10 @@ if 'audit' in user['allowed_tabs']:
         st.write("Bộ chỉ số kiểm định toàn diện đánh giá năng lực phân loại, độ ổn định dân số và chất lượng dự báo của **3 Mô hình Cây Quyết Định, Hồi Quy Logistic, và XGBoost** trên tập kiểm thử độc lập 30,000 hồ sơ.")
         
         ak1, ak2, ak3, ak4 = st.columns(4)
-        ak1.metric("AUC-ROC (Test 30k)", "0.852 | 0.856 | 0.868", "XGBoost dẫn đầu (+0.0125)")
-        ak2.metric("Hệ Số Gini (2*AUC - 1)", "0.704 | 0.711 | 0.736", "Cả 3 đều > 0.60 Chuẩn Vàng")
-        ak3.metric("Kolmogorov-Smirnov (KS)", "55.87% | 55.19% | 58.08%", "XGBoost phân tách nợ xấu tối đa")
-        ak4.metric("Trôi Dạt Dân Số (PSI)", "0.00008 | 0.00029 | 0.00015", "< 0.10 Cả 3 an toàn tuyệt đối")
+        ak1.metric("AUC-ROC (Test 30k)", "0.8575 | 0.8556 | 0.8675", "XGBoost dẫn đầu (+0.0119)")
+        ak2.metric("Hệ Số Gini (2*AUC - 1)", "0.7149 | 0.7112 | 0.7350", "Cả 3 đều > 0.60 Chuẩn Vàng")
+        ak3.metric("Kolmogorov-Smirnov (KS)", "56.14% | 55.19% | 57.86%", "XGBoost phân tách nợ xấu tối đa")
+        ak4.metric("Trôi Dạt Dân Số (PSI)", "0.00034 | 0.00029 | 0.00012", "< 0.10 An toàn tuyệt đối")
         
         st.markdown("---")
         col_aud1, col_aud2 = st.columns(2)
@@ -2557,19 +2687,32 @@ if 'audit' in user['allowed_tabs']:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.markdown("##### 📋 Bảng So Sánh Chỉ Số Kiểm Toán Toàn Diện (Audit Scorecard)")
             audit_matrix = pd.DataFrame([
-                {'Chỉ Số Kiểm Toán Basel II': '1. AUC-ROC Tập Train (120k)', 'Cây Quyết Định': '0.8526', 'Hồi Quy Logistic': '0.8494', 'XGBoost': '0.8702', 'Ngưỡng Chuẩn': '>= 0.75 (Tốt)'},
-                {'Chỉ Số Kiểm Toán Basel II': '2. AUC-ROC Tập Test (30k)', 'Cây Quyết Định': '0.8521', 'Hồi Quy Logistic': '0.8556', 'XGBoost': '0.8681', 'Ngưỡng Chuẩn': '>= 0.75 (Tốt)'},
-                {'Chỉ Số Kiểm Toán Basel II': '3. Hệ Số Gini (2*AUC - 1)', 'Cây Quyết Định': '0.7041', 'Hồi Quy Logistic': '0.7112', 'XGBoost': '0.7362', 'Ngưỡng Chuẩn': '>= 0.50 (Vàng)'},
-                {'Chỉ Số Kiểm Toán Basel II': '4. Kolmogorov-Smirnov (KS)', 'Cây Quyết Định': '55.87%', 'Hồi Quy Logistic': '55.19%', 'XGBoost': '58.08%', 'Ngưỡng Chuẩn': '>= 40.0% (Mạnh)'},
-                {'Chỉ Số Kiểm Toán Basel II': '5. Mức Suy Giảm Gini (Drop)', 'Cây Quyết Định': '0.16%', 'Hồi Quy Logistic': '-1.76%', 'XGBoost': '0.57%', 'Ngưỡng Chuẩn': '< 10.0% (An toàn)'},
-                {'Chỉ Số Kiểm Toán Basel II': '6. Brier Score (Độ Sai Lệch PD)', 'Cây Quyết Định': '0.0507', 'Hồi Quy Logistic': '0.0508', 'XGBoost': '0.0489', 'Ngưỡng Chuẩn': '< 0.10 (Chuẩn)'},
-                {'Chỉ Số Kiểm Toán Basel II': '7. Brier Skill Score (BSS)', 'Cây Quyết Định': '0.1875', 'Hồi Quy Logistic': '0.1860', 'XGBoost': '0.2161', 'Ngưỡng Chuẩn': '> 0.00 (Vượt trội)'},
-                {'Chỉ Số Kiểm Toán Basel II': '8. Population Stability (PSI)', 'Cây Quyết Định': '0.000078', 'Hồi Quy Logistic': '0.000293', 'XGBoost': '0.000150', 'Ngưỡng Chuẩn': '< 0.10 (Không Shift)'},
-                {'Chỉ Số Kiểm Toán Basel II': '9. Thời Gian Tính Toán (Latency)', 'Cây Quyết Định': '0.8 ms', 'Hồi Quy Logistic': '1.1 ms', 'XGBoost': '0.06 ms', 'Ngưỡng Chuẩn': '< 50 ms (Real-time)'}
+                {'Chỉ Số Kiểm Toán Basel II': '1. AUC-ROC Tập Train (120k)', 'Cây Quyết Định': '0.8587', 'Hồi Quy Logistic': '0.8494', 'XGBoost': '0.8712', 'Ngưỡng Chuẩn': '>= 0.75 (Tốt)'},
+                {'Chỉ Số Kiểm Toán Basel II': '2. AUC-ROC Tập Test (30k)', 'Cây Quyết Định': '0.8575', 'Hồi Quy Logistic': '0.8556', 'XGBoost': '0.8675', 'Ngưỡng Chuẩn': '>= 0.75 (Tốt)'},
+                {'Chỉ Số Kiểm Toán Basel II': '3. Hệ Số Gini (2*AUC - 1)', 'Cây Quyết Định': '0.7149', 'Hồi Quy Logistic': '0.7112', 'XGBoost': '0.7350', 'Ngưỡng Chuẩn': '>= 0.50 (Vàng)'},
+                {'Chỉ Số Kiểm Toán Basel II': '4. Kolmogorov-Smirnov (KS)', 'Cây Quyết Định': '56.14%', 'Hồi Quy Logistic': '55.19%', 'XGBoost': '57.86%', 'Ngưỡng Chuẩn': '>= 40.0% (Mạnh)'},
+                {'Chỉ Số Kiểm Toán Basel II': '5. Mức Suy Giảm Gini (Drop)', 'Cây Quyết Định': '0.17%', 'Hồi Quy Logistic': '-1.76%', 'XGBoost': '0.42%', 'Ngưỡng Chuẩn': '< 10.0% (An toàn)'},
+                {'Chỉ Số Kiểm Toán Basel II': '6. Brier Score (Độ Sai Lệch PD)', 'Cây Quyết Định': '0.0498', 'Hồi Quy Logistic': '0.0508', 'XGBoost': '0.0489', 'Ngưỡng Chuẩn': '< 0.10 (Chuẩn)'},
+                {'Chỉ Số Kiểm Toán Basel II': '7. Brier Skill Score (BSS)', 'Cây Quyết Định': '0.2017', 'Hồi Quy Logistic': '0.1860', 'XGBoost': '0.2161', 'Ngưỡng Chuẩn': '> 0.00 (Vượt trội)'},
+                {'Chỉ Số Kiểm Toán Basel II': '8. Expected Calibration Error (ECE)', 'Cây Quyết Định': '0.0022', 'Hồi Quy Logistic': '0.0075', 'XGBoost': '0.0038', 'Ngưỡng Chuẩn': '< 0.01 (Tuyệt vời)'},
+                {'Chỉ Số Kiểm Toán Basel II': '9. Population Stability (PSI)', 'Cây Quyết Định': '0.000340', 'Hồi Quy Logistic': '0.000293', 'XGBoost': '0.000122', 'Ngưỡng Chuẩn': '< 0.10 (Không Shift)'},
+                {'Chỉ Số Kiểm Toán Basel II': '10. Thời Gian Tính Toán (Latency)', 'Cây Quyết Định': '0.8 ms', 'Hồi Quy Logistic': '1.1 ms', 'XGBoost': '0.06 ms', 'Ngưỡng Chuẩn': '< 50 ms (Real-time)'}
             ])
             st.dataframe(audit_matrix, use_container_width=True, hide_index=True)
             st.success("✓ **Kết Luận Độc Lập Từ Kiểm Toán Rủi Ro:** Cả 3 mô hình đều đáp ứng 100% điều kiện vận hành theo Basel II Trụ cột 2 và đạt điều kiện tích hợp song hành trên Hệ thống Core Banking.")
             st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown("##### 🏛️ MA TRẬN ĐÁNH GIÁ NĂNG LỰC THÍCH ỨNG & CHIẾN LƯỢC VẬN HÀNH 'KIỀNG 3 CHÂN'")
+        st.write("Phân định rõ vai trò chức năng và vị trí tác chiến của từng mô hình trong hệ sinh thái ngân hàng số theo chuẩn Basel II & IFRS 9:")
+        kieng_3_chan_df = pd.DataFrame([
+            {'Tiêu chuẩn Đánh giá': '1. Khả năng Thích ứng Vĩ mô (Macro)', 'Hồi quy Logistic': 'Dịch chuyển tham số Offset trực tiếp không cần huấn luyện lại', 'Cây Quyết định (86 Lá)': 'Điều chỉnh thủ công từng ngưỡng nút lá', 'Monotonic XGBoost': 'Tích hợp biến số vĩ mô làm lớp phủ động'},
+            {'Tiêu chuẩn Đánh giá': '2. Khả năng Thích ứng Cục bộ (Local)', 'Hồi quy Logistic': 'Bị hạn chế bởi tính tuyến tính toàn cục', 'Cây Quyết định (86 Lá)': 'Rất cao: Tùy biến chính sách riêng trên từng lá đơn lẻ', 'Monotonic XGBoost': 'Trung bình: Thay đổi cục bộ có thể lan tỏa phi tuyến'},
+            {'Tiêu chuẩn Đánh giá': '3. Tốc độ Phê duyệt (Latency)', 'Hồi quy Logistic': '~1.1 ms (Rất nhanh)', 'Cây Quyết định (86 Lá)': '~0.8 ms (Rất nhanh)', 'Monotonic XGBoost': '< 0.1 ms (Siêu tốc kênh số)'},
+            {'Tiêu chuẩn Đánh giá': '4. Minh bạch Pháp lý & Giải trình', 'Hồi quy Logistic': 'Chuẩn mực khắt khe Basel II Pillar 1 & 2', 'Cây Quyết định (86 Lá)': 'Trực quan hóa tuyệt đối qua cây IF-THEN', 'Monotonic XGBoost': 'Ràng buộc đơn điệu + Tree SHAP Explainability'},
+            {'Tiêu chuẩn Đánh giá': '5. Khuyến nghị Vị trí Triển khai', 'Hồi quy Logistic': 'Trụ cột Pháp lý & Tính Vốn Tối thiểu (Regulatory Capital)', 'Cây Quyết định (86 Lá)': 'Cẩm nang Tác nghiệp Vùng Xám (Manual Underwriting Playbook)', 'Monotonic XGBoost': 'Động cơ Phê duyệt Kênh Số (Digital Real-time Lending)'}
+        ])
+        st.dataframe(kieng_3_chan_df, use_container_width=True, hide_index=True)
 
 # Footer chân trang
 st.markdown("""
