@@ -139,6 +139,8 @@ def apply_preprocessor(data: pd.DataFrame, params: dict) -> pd.DataFrame:
     pred_income = np.clip(pred_income, 500.0, params["cap_income"])
 
     # Với nhóm khuyết thu nhập: DebtRatio gốc bản chất là số tiền nợ D (USD)
+    out["DebtRatio"] = out["DebtRatio"].astype(float)
+    out["MonthlyIncome"] = out["MonthlyIncome"].astype(float)
     missing_mask = out["MonthlyIncome_is_missing"] == 1
     out.loc[missing_mask, "DebtRatio"] = (
         out.loc[missing_mask, "DebtRatio"] / pred_income[missing_mask]

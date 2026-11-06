@@ -766,6 +766,11 @@ def calculate_debt_ratio(accounts, gross_income_vnd, alimony_vnd=0.0, living_cos
 # ==============================================================================
 def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     df_in = pd.DataFrame([data_dict])
+    if prep_params:
+        try:
+            df_in = preprocessing.apply_preprocessor(df_in, prep_params)
+        except Exception:
+            pass
     
     # Xử lý cờ cảnh báo mã lỗi hệ thống 96/98 và khuyết thu nhập theo Ý tưởng 2
     delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
@@ -885,6 +890,11 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
         return score_single_customer_dt(data_dict, product_code, market_mode, loan_amt)
         
     df_in = pd.DataFrame([data_dict])
+    if prep_params:
+        try:
+            df_in = preprocessing.apply_preprocessor(df_in, prep_params)
+        except Exception:
+            pass
     delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
     if 'Has_Code_96_98' not in df_in.columns:
         df_in['Has_Code_96_98'] = df_in[delinq_cols].isin([96, 98]).any(axis=1).astype(int)
@@ -1007,6 +1017,11 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
         return score_single_customer_lr(data_dict, product_code, market_mode, loan_amt)
         
     df_in = pd.DataFrame([data_dict])
+    if prep_params:
+        try:
+            df_in = preprocessing.apply_preprocessor(df_in, prep_params)
+        except Exception:
+            pass
     delinq_cols = ['NumberOfTime30-59DaysPastDueNotWorse', 'NumberOfTimes90DaysLate', 'NumberOfTime60-89DaysPastDueNotWorse']
     if 'Has_Code_96_98' not in df_in.columns:
         df_in['Has_Code_96_98'] = df_in[delinq_cols].isin([96, 98]).any(axis=1).astype(int)
@@ -1187,9 +1202,11 @@ def generate_bw_credit_appraisal_pdf(customer_info, financial_details, card_item
         [Paragraph("3. Cổ tức / Kinh doanh / Đầu tư", c_txt), Paragraph(f"{financial_details.get('income_business', 0):,.0f} VND", c_txt),
          Paragraph("• Dự kiến góp khoản vay mới", c_txt), Paragraph(f"{financial_details.get('monthly_new_installment', 0):,.0f} VND/th", c_txt)],
         [Paragraph("4. Thu nhập hợp pháp khác", c_txt), Paragraph(f"{financial_details.get('income_other', 0):,.0f} VND", c_txt),
-         Paragraph("TỔNG NGHĨA VỤ NỢ HÀNG THÁNG", c_bold), Paragraph(f"{financial_details.get('total_debt_monthly', 0):,.0f} VND/th", c_bold)],
+         Paragraph("• Chi phí sinh hoạt thiết yếu (Living)", c_txt), Paragraph(f"{financial_details.get('living_costs', 0):,.0f} VND/th", c_txt)],
+        [Paragraph("DSR NỢ VAY THUẦN TÚY (NỘI BỘ)", c_bold), Paragraph(f"{financial_details.get('pure_dsr_pct', financial_details.get('dsr_pct', 0)):.2f}%", c_bold),
+         Paragraph("• Cấp dưỡng / Khác (Alimony)", c_txt), Paragraph(f"{financial_details.get('alimony', 0):,.0f} VND/th", c_txt)],
         [Paragraph("TỔNG THU NHẬP GỘP (MẪU SỐ)", c_bold), Paragraph(f"{financial_details.get('total_income_vnd', 0):,.0f} VND/th", c_bold),
-         Paragraph("TỶ SỐ DEBT RATIO (FICO INPUT)", c_bold), Paragraph(f"{features_dict.get('DebtRatio', 0)*100:.2f}% ({features_dict.get('DebtRatio', 0):.4f})", c_bold)]
+         Paragraph("TỔNG NGHĨA VỤ (TỬ SỐ DEBT RATIO)", c_bold), Paragraph(f"{financial_details.get('total_obligations_monthly', financial_details.get('total_debt_monthly', 0)):,.0f} VND/th", c_bold)]
     ]
     t_fin = Table(fin_summary, colWidths=[140, 125, 140, 125])
     t_fin.setStyle(TableStyle([
@@ -1565,26 +1582,30 @@ with active_tabs[0]:
             ]
             st.rerun()
             
-    # Giá trị mặc định theo preset
+    # Giá trị mặc định theo preset (bao gồm Chi phí sinh hoạt & Nghĩa vụ cấp dưỡng theo Give Me Some Credit)
     if st.session_state.cust_preset == 'good':
         p_name = "Nguyễn Văn An"
         p_age, p_dep = 38, 1
         p_salary, p_rental, p_biz, p_other = 50_000_000, 15_000_000, 0, 0
+        p_living, p_alimony = 12_000_000, 0
         p_late90, p_late60, p_late30 = 0, 0, 0
     elif st.session_state.cust_preset == 'medium':
         p_name = "Trần Đình Khang"
         p_age, p_dep = 42, 2
         p_salary, p_rental, p_biz, p_other = 22_000_000, 0, 6_000_000, 0
+        p_living, p_alimony = 8_000_000, 0
         p_late90, p_late60, p_late30 = 0, 0, 1
     elif st.session_state.cust_preset == 'bad':
         p_name = "Lê Tuấn Kiệt"
         p_age, p_dep = 28, 0
         p_salary, p_rental, p_biz, p_other = 10_000_000, 0, 0, 0
+        p_living, p_alimony = 5_000_000, 0
         p_late90, p_late60, p_late30 = 2, 1, 2
     else: # anomaly
         p_name = "Hoàng Trọng Nghĩa"
         p_age, p_dep = 46, 2
         p_salary, p_rental, p_biz, p_other = 0, 0, 0, 0 # Khuyết thu nhập hoàn toàn
+        p_living, p_alimony = 6_000_000, 0
         p_late90, p_late60, p_late30 = 98, 0, 0 # Kích hoạt mã hệ thống 98
 
     st.markdown("---")
@@ -1642,7 +1663,44 @@ with active_tabs[0]:
     total_income_vnd = income_salary + income_rental + income_biz + income_other
     cust_income_model = total_income_vnd / 25_000.0 if total_income_vnd > 0 else 0.0
     
-    st.info(f"📊 **Tổng Thu Nhập Gộp Hàng Tháng:** **`{total_income_vnd:,.0f} VND/tháng`** (Đã xác minh qua bảng lương và nguồn thu hợp pháp).")
+    st.info(f"📊 **Tổng Thu Nhập Gộp Hàng Tháng (Monthly Gross Income):** **`{total_income_vnd:,.0f} VND/tháng`** (Đã xác minh qua bảng lương và nguồn thu hợp pháp).")
+
+    st.markdown("---")
+
+    # ------------------ MODULE 03B: CHI PHÍ SINH HOẠT & NGHĨA VỤ GIA ĐÌNH HÀNG THÁNG ------------------
+    st.markdown("""
+    <div class="hdb-section-header">
+        <span class="hdb-badge">03B</span>
+        <span class="hdb-title">CHI PHÍ SINH HOẠT & NGHĨA VỤ GIA ĐÌNH HÀNG THÁNG (LIVING COSTS & ALIMONY)</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.caption("📌 **Theo chuẩn Give Me Some Credit (Data Dictionary):** DebtRatio = (Tổng thanh toán nợ hàng tháng + Chi phí sinh hoạt + Tiền cấp dưỡng) / Thu nhập gộp.")
+    col_liv1, col_liv2 = st.columns(2)
+    with col_liv1:
+        living_costs_vnd = st.number_input(
+            "1. Chi phí sinh hoạt cá nhân & gia đình hàng tháng (VND/tháng):",
+            min_value=0,
+            max_value=300_000_000,
+            value=p_living,
+            step=500_000,
+            format="%d",
+            key=f"liv_{st.session_state.cust_preset}",
+            help="Chi phí sinh hoạt thiết yếu (ăn uống, sinh hoạt, tiền nhà, học phí, tiện ích sinh hoạt...)"
+        )
+    with col_liv2:
+        alimony_vnd = st.number_input(
+            "2. Chi phí cấp dưỡng / Nghĩa vụ phụ thuộc khác (VND/tháng):",
+            min_value=0,
+            max_value=150_000_000,
+            value=p_alimony,
+            step=500_000,
+            format="%d",
+            key=f"ali_{st.session_state.cust_preset}",
+            help="Khoản tiền cấp dưỡng theo quy định bản án/thỏa thuận hoặc trợ cấp nuôi dưỡng người thân hàng tháng (Alimony/Child Support)"
+        )
+
+    total_family_living_vnd = living_costs_vnd + alimony_vnd
+    st.info(f"🏡 **Tổng Chi Phí Sinh Hoạt & Cấp Dưỡng Hàng Tháng:** **`{total_family_living_vnd:,.0f} VND/tháng`** (Sẽ được cộng trực tiếp vào tử số của DebtRatio theo đúng định nghĩa Data Dictionary).")
 
     st.markdown("---")
 
@@ -1751,6 +1809,15 @@ with active_tabs[0]:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    with st.expander("⚙️ Tùy chọn linh hoạt: Ghi đè Tỷ lệ dùng thẻ (%) trực tiếp nếu cần thiết", expanded=False):
+        ov_ru = st.checkbox("Kích hoạt nhập trực tiếp Tỷ lệ dùng hạn mức (%) thay vì tính từ bảng thẻ", key=f"ov_ru_{st.session_state.cust_preset}")
+        if ov_ru:
+            m_ru_pct = st.number_input("Tỷ lệ dùng hạn mức quay vòng (%):", min_value=0.0, max_value=300.0, value=float(ru_pct), step=1.0, key=f"m_ru_{st.session_state.cust_preset}")
+            raw_ru = m_ru_pct / 100.0
+            ru_pct = m_ru_pct
+            ru_val = float(np.clip(raw_ru, 0.0, 1.369269))
+            ru_color = "#10B981" if ru_pct <= 35.0 else ("#F59E0B" if ru_pct <= 70.0 else "#EF4444")
 
     st.markdown("---")
 
@@ -1915,42 +1982,59 @@ with active_tabs[0]:
         <span class="hdb-title">TỔNG HỢP NGHĨA VỤ VÀ TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO)</span>
     </div>
     """, unsafe_allow_html=True)
-    st.caption("📌 **Nguyên tắc:** Tổng nghĩa vụ trả nợ hàng tháng bao gồm thẻ tín dụng (0.5% HM), khoản vay hiện hữu (Gốc + Lãi) và khoản vay mới đề nghị cấp. Tỷ số nợ trên thu nhập = **Tổng nghĩa vụ / Thu nhập gộp**.")
+    st.caption("📌 **Công thức chuẩn mực Give Me Some Credit (Data Dictionary):** **DebtRatio = (Nợ thẻ + Nợ vay hiện hữu + Nợ vay mới + Chi phí sinh hoạt + Cấp dưỡng) / Thu nhập gộp**.")
 
-    # Tính tổng nghĩa vụ hàng tháng
-    total_monthly_debt = tot_card_pmt + tot_loan_pmt + new_loan_monthly_installment
+    # 1. Tổng nghĩa vụ nợ ngân hàng thuần túy (Góp thẻ 0.5% HM + Góp nợ vay hiện hữu + Góp khoản vay mới đề nghị)
+    pure_monthly_debt = tot_card_pmt + tot_loan_pmt + new_loan_monthly_installment
+    # 2. Tổng toàn bộ nghĩa vụ tài chính hàng tháng (bao gồm chi phí sinh hoạt & tiền cấp dưỡng theo đúng Give Me Some Credit)
+    total_monthly_obligations = pure_monthly_debt + living_costs_vnd + alimony_vnd
 
     if total_income_vnd > 0:
-        raw_dr = total_monthly_debt / total_income_vnd
+        raw_dr = total_monthly_obligations / total_income_vnd
         dr_pct = raw_dr * 100.0
         dr_val = float(np.clip(raw_dr, 0.0, 2.314806))
+        pure_dsr_pct = (pure_monthly_debt / total_income_vnd) * 100.0
     else:
-        raw_dr = 0.0
+        # Nhóm khuyết thu nhập: Trong pipeline GMSC, DebtRatio lưu giá trị nghĩa vụ nợ tuyệt đối (USD)
+        raw_dr = total_monthly_obligations / 25_000.0
         dr_pct = 0.0
-        dr_val = 0.0
+        dr_val = raw_dr
+        pure_dsr_pct = 100.0
 
-    dr_badge_col = "#10B981" if dr_pct <= 45.0 else ("#F59E0B" if dr_pct <= 70.0 else "#EF4444")
+    dr_badge_col = "#10B981" if dr_pct <= 60.0 else ("#F59E0B" if dr_pct <= 80.0 else "#EF4444")
 
     st.markdown(f"""
     <div class="summary-strip">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div>
                 💳 <b>Góp Thẻ Hiện Hữu (0.5% HM):</b> <b>{tot_card_pmt:,.0f} đ/th</b> | 
                 🏦 <b>Góp Vay Hiện Hữu (2):</b> <b>{tot_loan_pmt:,.0f} đ/th</b> | 
                 🆕 <b>Góp Vay Mới Đề Nghị:</b> <b>{new_loan_monthly_installment:,.0f} đ/th</b><br/>
-                💰 <b>TỔNG NGHĨA VỤ NỢ HÀNG THÁNG (TỬ SỐ):</b> <b style="color: #1E3A8A; font-size: 16px;">{total_monthly_debt:,.0f} VND/tháng</b> | 
-                <b>Thu Nhập Gộp (Mẫu số):</b> <b>{total_income_vnd:,.0f} VND/tháng</b><br/>
-                👉 <b>TỶ SỐ NỢ TRÊN THU NHẬP (DEBT RATIO):</b> 
-                <b style="color: {dr_badge_col}; font-size: 20px;">{dr_pct:.2f}%</b>
+                🏡 <b>Chi Phí Sinh Hoạt Thiết Yếu:</b> <b style="color: #4338CA;">{living_costs_vnd:,.0f} đ/th</b> | 
+                👨‍👩‍👧 <b>Cấp Dưỡng / Khác:</b> <b style="color: #4338CA;">{alimony_vnd:,.0f} đ/th</b><br/>
+                💰 <b>TỔNG NGHĨA VỤ TÀI CHÍNH (TỬ SỐ):</b> <b style="color: #1E3A8A; font-size: 16px;">{total_monthly_obligations:,.0f} VND/tháng</b> | 
+                <b>Thu Nhập Gộp (MẪU SỐ):</b> <b>{total_income_vnd:,.0f} VND/tháng</b><br/>
+                👉 <b style="font-size: 15px;">TỶ SỐ DEBT RATIO TOÀN DIỆN (CHUẨN GMSC / FICO):</b> 
+                <b style="color: {dr_badge_col}; font-size: 21px;">{dr_pct:.2f}%</b> 
+                <span style="font-size: 12px; color: #475569;">(Đầu vào mô hình: <b>{dr_val:.4f}</b>)</span> | 
+                <span style="font-size: 13px; color: #334155;">DSR Nợ Vay Thuần Túy: <b>{pure_dsr_pct:.2f}%</b></span>
             </div>
             <div>
-                <span style="background: {'#DCFCE7' if dr_pct<=45 else ('#FEF3C7' if dr_pct<=70 else '#FEE2E2')}; color: {dr_badge_col}; font-size: 12px; font-weight: bold; padding: 6px 12px; border-radius: 8px;">
-                    {'✓ AN TOÀN (<=45%)' if dr_pct<=45 else ('⚠️ TIỆM CẬN (45-70%)' if dr_pct<=70 else '⛔ NGUY CƠ (>70%)')}
+                <span style="background: {'#DCFCE7' if dr_pct<=60 else ('#FEF3C7' if dr_pct<=80 else '#FEE2E2')}; color: {dr_badge_col}; font-size: 12px; font-weight: bold; padding: 6px 14px; border-radius: 8px;">
+                    {'✓ AN TOÀN (<=60%)' if dr_pct<=60 else ('⚠️ TIỆM CẬN (60-80%)' if dr_pct<=80 else '⛔ NGUY CƠ CAO (>80%)')}
                 </span>
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    with st.expander("⚙️ Tùy chọn linh hoạt: Ghi đè Tỷ số DebtRatio trực tiếp nếu cần thiết", expanded=False):
+        ov_dr = st.checkbox("Kích hoạt nhập trực tiếp DebtRatio thay vì tính toán tự động", key=f"ov_dr_{st.session_state.cust_preset}")
+        if ov_dr:
+            m_dr_val = st.number_input("Nhập DebtRatio mong muốn (dạng số thập phân, ví dụ 0.45 tương đương 45%):", min_value=0.0, max_value=10.0, value=float(dr_val), step=0.05, key=f"m_dr_{st.session_state.cust_preset}")
+            dr_val = float(np.clip(m_dr_val, 0.0, 2.314806))
+            dr_pct = dr_val * 100.0
+            dr_badge_col = "#10B981" if dr_pct <= 60.0 else ("#F59E0B" if dr_pct <= 80.0 else "#EF4444")
 
     st.markdown("---")
 
@@ -1962,9 +2046,21 @@ with active_tabs[0]:
     </div>
     ''', unsafe_allow_html=True)
 
-    # Tính 2 chỉ số chuẩn
-    n_open = len(open_cards) + len(open_loans)
-    n_re = sum(1 for l in open_loans if l.get('loan_type') == 'MORTGAGE_RE')
+    # Tính 2 chỉ số chuẩn từ danh mục thẻ và khoản vay
+    auto_n_open = len(open_cards) + len(open_loans)
+    auto_n_re = sum(1 for l in open_loans if l.get('loan_type') == 'MORTGAGE_RE')
+
+    with st.expander("⚙️ Tùy chọn linh hoạt: Điều chỉnh số lượng tài khoản CIC trực tiếp", expanded=False):
+        ov_counts = st.checkbox("Kích hoạt điều chỉnh thủ công số lượng tài khoản CIC", key=f"ov_cnt_{st.session_state.cust_preset}")
+        if ov_counts:
+            col_ov1, col_ov2 = st.columns(2)
+            with col_ov1:
+                n_open = st.number_input("Số khoản vay & hạn mức tín dụng đang mở (NumberOfOpenCreditLinesAndLoans):", min_value=0, max_value=60, value=auto_n_open, step=1, key=f"m_open_{st.session_state.cust_preset}")
+            with col_ov2:
+                n_re = st.number_input("Số khoản vay thế chấp Bất động sản (NumberRealEstateLoansOrLines):", min_value=0, max_value=30, value=auto_n_re, step=1, key=f"m_re_{st.session_state.cust_preset}")
+        else:
+            n_open = auto_n_open
+            n_re = auto_n_re
 
     col_c7_1, col_c7_2 = st.columns(2)
     with col_c7_1:
@@ -2046,8 +2142,14 @@ with active_tabs[0]:
         'total_loan_monthly_debt': tot_loan_pmt,
         'monthly_debt_repayment': tot_card_pmt + tot_loan_pmt,
         'monthly_new_installment': new_loan_monthly_installment,
-        'total_debt_monthly': total_monthly_debt,
-        'dsr_pct': dr_pct,
+        'living_costs': living_costs_vnd,
+        'alimony': alimony_vnd,
+        'pure_debt_monthly': pure_monthly_debt,
+        'total_obligations_monthly': total_monthly_obligations,
+        'total_debt_monthly': total_monthly_obligations,
+        'pure_dsr_pct': pure_dsr_pct,
+        'dsr_pct': pure_dsr_pct,
+        'debt_ratio_pct': dr_pct,
         'post_debt_ratio': dr_pct
     }
 
