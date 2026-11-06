@@ -130,9 +130,66 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Kỹ thuật Smooth Scrolling (Lenis Engine & CSS Scroll Behavior)
+st.components.v1.html("""
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.0.45/dist/lenis.min.js"></script>
+<script>
+    try {
+        const lenis = new Lenis({
+            duration: 1.2,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            smooth: true,
+            smoothTouch: false
+        });
+        function raf(time) {
+            lenis.raf(time);
+            requestAnimationFrame(raf);
+        }
+        requestAnimationFrame(raf);
+    } catch(e) {
+        console.log("Lenis Smooth Scroll Initialized", e);
+    }
+</script>
+""", height=0, width=0)
+
 # Custom CSS phong cách Báo cáo thường niên Ngân hàng cao cấp (HDBank inspired)
 st.markdown("""
 <style>
+    /* SMOOTH SCROLLING - CUỘN TRANG MƯỢT MÀ CHUẨN UX HIỆN ĐẠI */
+    html {
+        scroll-behavior: smooth !important;
+    }
+    body, [data-testid="stAppViewContainer"], .main {
+        scroll-behavior: smooth !important;
+    }
+
+    /* ĐỒNG BỘ KÍCH THƯỚC VÀ CĂN HÀNG NGANG BẰNG CÁC Ô NHẬP LIỆU (BALANCED INPUT GRIDS) */
+    div[data-testid="stNumberInput"] label,
+    div[data-testid="stTextInput"] label,
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stDateInput"] label {
+        min-height: 26px !important;
+        font-weight: 700 !important;
+        color: #1E293B !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        margin-bottom: 5px !important;
+    }
+    div[data-testid="stTextInput"] > div > div,
+    div[data-testid="stNumberInput"] > div > div,
+    div[data-testid="stSelectbox"] > div > div,
+    div[data-testid="stDateInput"] > div > div {
+        min-height: 44px !important;
+        border-radius: 8px !important;
+    }
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input {
+        height: 42px !important;
+        font-size: 14.5px !important;
+        border-radius: 8px !important;
+    }
+
     /* NỀN TẢNG THIẾT KẾ: FINTECH BANKING BLUE PALETTE HIỆN ĐẠI & SANG TRỌNG */
     :root {
         --primary-blue: #1D4ED8;
@@ -543,9 +600,19 @@ def load_multi_model_risk_assets():
 
     return dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset, prep_params
 
+import copy
+
 try:
     dt_model, lr_model, xgb_model, scaler, leaf_df, dt_cfg, lr_cfg, xgb_cfg, dt_metrics_df, lr_metrics_df, xgb_metrics_df, feat_df, xgb_feat_df, factor, offset, prep_params = load_multi_model_risk_assets()
     leaf_info = leaf_df.set_index('Leaf ID').to_dict('index') if not leaf_df.empty else {}
+    
+    # Khởi tạo lưu trữ cấu hình chính sách trong session_state để các điều chỉnh tại Tab 3 (CRO) có hiệu lực tức thì sang Tab 1 và Tab 2
+    if 'policy_configs' not in st.session_state:
+        st.session_state.policy_configs = {
+            'dt': copy.deepcopy(dt_cfg),
+            'lr': copy.deepcopy(lr_cfg),
+            'xgb': copy.deepcopy(xgb_cfg)
+        }
 except Exception as e:
     st.error(f"Lỗi khi nạp dữ liệu mô hình: {e}")
     st.stop()
@@ -811,7 +878,8 @@ def score_single_customer_dt(data_dict, product_code, market_mode, loan_amt):
     wilson = leaf_row.get('Wilson CI 95%', f"[{max(0.0001, prob_pd*0.85)*100:.2f}%, {min(0.99, prob_pd*1.2)*100:.2f}%]")
     rule = leaf_row.get('Điều kiện logic (IF - THEN)', 'Quy tắc nút lá chuẩn hóa từ tập huấn luyện')
     
-    prod_cfg = dt_cfg.get(product_code, dt_cfg['CREDIT_CARD'])
+    active_dt_cfg = st.session_state.policy_configs['dt'] if ('policy_configs' in st.session_state and 'dt' in st.session_state.policy_configs) else dt_cfg
+    prod_cfg = active_dt_cfg.get(product_code, active_dt_cfg.get('CREDIT_CARD', dt_cfg['CREDIT_CARD']))
     p_params = prod_cfg['params']
     net_r = p_params['r'] - p_params['c']
     lgd = p_params['lgd']
@@ -930,7 +998,8 @@ def score_single_customer_lr(data_dict, product_code, market_mode, loan_amt):
     else:
         grade = 'Hạng 5 (> 20%)'
         
-    prod_cfg = lr_cfg.get(product_code, lr_cfg['CREDIT_CARD'])
+    active_lr_cfg = st.session_state.policy_configs['lr'] if ('policy_configs' in st.session_state and 'lr' in st.session_state.policy_configs) else lr_cfg
+    prod_cfg = active_lr_cfg.get(product_code, active_lr_cfg.get('CREDIT_CARD', lr_cfg['CREDIT_CARD']))
     p_params = prod_cfg['params']
     net_r = p_params['r'] - p_params['c']
     lgd = p_params['lgd']
@@ -1056,7 +1125,8 @@ def score_single_customer_xgb(data_dict, product_code, market_mode, loan_amt):
     else:
         grade = 'Hạng 5 (> 20%)'
         
-    prod_cfg = xgb_cfg.get(product_code, xgb_cfg['CREDIT_CARD'])
+    active_xgb_cfg = st.session_state.policy_configs['xgb'] if ('policy_configs' in st.session_state and 'xgb' in st.session_state.policy_configs) else xgb_cfg
+    prod_cfg = active_xgb_cfg.get(product_code, active_xgb_cfg.get('CREDIT_CARD', xgb_cfg['CREDIT_CARD']))
     p_params = prod_cfg['params']
     net_r = p_params['r'] - p_params['c']
     lgd = p_params['lgd']
@@ -1420,11 +1490,18 @@ with st.sidebar:
     st.markdown("### ⚙️ THIẾT LẬP KINH TẾ & THỊ TRƯỜNG")
     
     product_options = ['MORTGAGE', 'AUTO', 'UNSECURED', 'CREDIT_CARD']
+    if 'selected_product' not in st.session_state:
+        st.session_state.selected_product = 'CREDIT_CARD'
+    
+    prod_idx = product_options.index(st.session_state.selected_product) if st.session_state.selected_product in product_options else 3
     product_code = st.selectbox(
         "Dòng Sản phẩm Tín dụng:",
         options=product_options,
-        format_func=lambda x: dt_cfg[x]['product_name']
+        index=prod_idx,
+        format_func=lambda x: dt_cfg[x]['product_name'],
+        key="global_product_code"
     )
+    st.session_state.selected_product = product_code
     
     market_mode = st.selectbox(
         "Kịch bản Vĩ mô Thị trường:",
@@ -2038,24 +2115,25 @@ with active_tabs[0]:
 
     st.markdown("---")
 
-    # ------------------ MODULE 07: TỔNG HỢP SỐ LƯỢNG TÀI KHOẢN TÍN DỤNG & BẤT ĐỘNG SẢN (CIC) ------------------
+    # ------------------ MODULE 07: TỔNG HỢP HỢP ĐỒNG TÍN DỤNG (KHOẢN VAY & THẺ) & KHOẢN VAY BẤT ĐỘNG SẢN (CIC) ------------------
     st.markdown('''
     <div class="hdb-section-header">
         <span class="hdb-badge">07</span>
-        <span class="hdb-title">TỔNG HỢP SỐ LƯỢNG TÀI KHOẢN TÍN DỤNG & KHOẢN VAY BẤT ĐỘNG SẢN (CIC)</span>
+        <span class="hdb-title">TỔNG HỢP HỢP ĐỒNG TÍN DỤNG (KHOẢN VAY & THẺ TÍN DỤNG) & KHOẢN VAY BẤT ĐỘNG SẢN (CIC)</span>
     </div>
     ''', unsafe_allow_html=True)
+    st.caption("📌 **Quy định chuẩn Give Me Some Credit (Data Dictionary):** Biến **NumberOfOpenCreditLinesAndLoans** đo lường TỔNG TẤT CẢ các hợp đồng tín dụng đang mở của khách hàng, bao gồm cả Thẻ tín dụng/thấu chi (Mục 04) và Khoản nợ vay trả góp/thế chấp (Mục 05).")
 
     # Tính 2 chỉ số chuẩn từ danh mục thẻ và khoản vay
     auto_n_open = len(open_cards) + len(open_loans)
     auto_n_re = sum(1 for l in open_loans if l.get('loan_type') == 'MORTGAGE_RE')
 
-    with st.expander("⚙️ Tùy chọn linh hoạt: Điều chỉnh số lượng tài khoản CIC trực tiếp", expanded=False):
-        ov_counts = st.checkbox("Kích hoạt điều chỉnh thủ công số lượng tài khoản CIC", key=f"ov_cnt_{st.session_state.cust_preset}")
+    with st.expander("⚙️ Tùy chọn linh hoạt: Điều chỉnh số lượng tài khoản CIC trực tiếp nếu không kê khai từng dòng", expanded=False):
+        ov_counts = st.checkbox("Kích hoạt điều chỉnh thủ công số lượng hợp đồng tín dụng CIC", key=f"ov_cnt_{st.session_state.cust_preset}")
         if ov_counts:
             col_ov1, col_ov2 = st.columns(2)
             with col_ov1:
-                n_open = st.number_input("Số khoản vay & hạn mức tín dụng đang mở (NumberOfOpenCreditLinesAndLoans):", min_value=0, max_value=60, value=auto_n_open, step=1, key=f"m_open_{st.session_state.cust_preset}")
+                n_open = st.number_input("Tổng hợp đồng vay & thẻ đang mở (NumberOfOpenCreditLinesAndLoans):", min_value=0, max_value=60, value=auto_n_open, step=1, key=f"m_open_{st.session_state.cust_preset}")
             with col_ov2:
                 n_re = st.number_input("Số khoản vay thế chấp Bất động sản (NumberRealEstateLoansOrLines):", min_value=0, max_value=30, value=auto_n_re, step=1, key=f"m_re_{st.session_state.cust_preset}")
         else:
@@ -2065,18 +2143,22 @@ with active_tabs[0]:
     col_c7_1, col_c7_2 = st.columns(2)
     with col_c7_1:
         st.markdown(f'''
-        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase;">TỔNG SỐ TÀI KHOẢN TÍN DỤNG ĐANG MỞ</div>
-            <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 15px; font-weight: 500; color: #64748B;">tài khoản</span></div>
-            <div style="font-size: 13px; color: #475569;">Bao gồm: <b>{len(open_cards)}</b> thẻ tín dụng/thấu chi + <b>{len(open_loans)}</b> khoản vay trả góp</div>
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #1D4ED8; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 145px;">
+            <div style="font-size: 12px; font-weight: 700; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.3px;">TỔNG HỢP ĐỒNG TÍN DỤNG ĐANG MỞ (KHOẢN VAY + THẺ)</div>
+            <div style="font-size: 28px; font-weight: 800; color: #1D4ED8; margin: 6px 0;">{n_open} <span style="font-size: 15px; font-weight: 600; color: #64748B;">hợp đồng tín dụng</span></div>
+            <div style="font-size: 13px; color: #475569; line-height: 1.45;">
+                ✓ Biến <b>NumberOfOpenCreditLinesAndLoans</b>: Gồm <b>{len(open_cards)}</b> thẻ tín dụng/thấu chi (Mục 04) + <b>{len(open_loans)}</b> khoản vay trả góp/thế chấp (Mục 05) đang hoạt động theo báo cáo CIC.
+            </div>
         </div>
         ''', unsafe_allow_html=True)
     with col_c7_2:
         st.markdown(f'''
-        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #059669; border-radius: 10px; padding: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-            <div style="font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase;">KHOẢN VAY BẤT ĐỘNG SẢN / THẾ CHẤP NHÀ</div>
-            <div style="font-size: 28px; font-weight: 800; color: #059669; margin: 6px 0;">{n_re} <span style="font-size: 15px; font-weight: 500; color: #64748B;">khoản</span></div>
-            <div style="font-size: 13px; color: #475569;">Khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD</div>
+        <div style="background: #FFFFFF; border: 1px solid #D6E4F0; border-top: 4px solid #059669; border-radius: 10px; padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); min-height: 145px;">
+            <div style="font-size: 12px; font-weight: 700; color: #065F46; text-transform: uppercase; letter-spacing: 0.3px;">KHOẢN VAY BẤT ĐỘNG SẢN / THẾ CHẤP NHÀ</div>
+            <div style="font-size: 28px; font-weight: 800; color: #059669; margin: 6px 0;">{n_re} <span style="font-size: 15px; font-weight: 600; color: #64748B;">khoản</span></div>
+            <div style="font-size: 13px; color: #475569; line-height: 1.45;">
+                ✓ Biến <b>NumberRealEstateLoansOrLines</b>: Số lượng khoản vay thế chấp mua nhà / Bất động sản đang mở tại các TCTD (tính từ Mục 05).
+            </div>
         </div>
         ''', unsafe_allow_html=True)
 
@@ -2169,6 +2251,9 @@ with active_tabs[0]:
 
     st.markdown("---")
     st.markdown("## 📊 KẾT QUẢ THẨM ĐỊNH & CHẤM ĐIỂM TÍN DỤNG")
+    
+    cur_p_display = (st.session_state.policy_configs['dt'].get(product_code, dt_cfg['CREDIT_CARD']))['params']
+    st.info(f"⚖️ **Tham số Khẩu vị Rủi ro & Định giá Đang Áp Dụng (Đồng bộ từ Trung tâm CRO):** Lãi suất cho vay $r = {cur_p_display['r']*100:.1f}\\%$/năm | Chi phí vốn & vận hành $c = {cur_p_display['c']*100:.1f}\\%$/năm | Biên lãi thuần $r-c = {(cur_p_display['r']-cur_p_display['c'])*100:.1f}\\%$/năm | Tổn thất $LGD = {cur_p_display['lgd']*100:.1f}\\%$/năm | Ngưỡng hòa vốn an toàn $PD^* = {cur_p_display['pd_breakeven']*100:.2f}\\%$")
 
     # ==============================================================================
     # HIỂN THỊ CHẾ ĐỘ TRIPLE (SIDE-BY-SIDE EVALUATION 3 MÔ HÌNH)
@@ -2228,10 +2313,10 @@ with active_tabs[0]:
             with c_dt2:
                 profit_col_dt = "#059669" if res_dt['profit_vnd'] >= 0 else "#DC2626"
                 st.markdown(f'''
-                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
-                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
-                    <div class="metric-value" style="color: {profit_col_dt}; font-size: 16px;">{res_dt["profit_vnd"]:,.0f} đ</div>
-                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_dt["decision"]}</div>
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px; min-height: 85px;">
+                    <div class="metric-label" style="font-size: 11px; font-weight: 700;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_dt}; font-size: 18px; font-weight: 800;">{res_dt["profit_vnd"]:+,.0f} đ</div>
+                    <div style="font-size: 12px; color: {profit_col_dt}; font-weight: 700; margin-top: 3px;">{res_dt["zone"]} ({res_dt["dec_code"]})</div>
                 </div>
                 ''', unsafe_allow_html=True)
 
@@ -2287,10 +2372,10 @@ with active_tabs[0]:
             with c_lr2:
                 profit_col_lr = "#059669" if res_lr['profit_vnd'] >= 0 else "#DC2626"
                 st.markdown(f'''
-                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
-                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
-                    <div class="metric-value" style="color: {profit_col_lr}; font-size: 16px;">{res_lr["profit_vnd"]:,.0f} đ</div>
-                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_lr["decision"]}</div>
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px; min-height: 85px;">
+                    <div class="metric-label" style="font-size: 11px; font-weight: 700;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_lr}; font-size: 18px; font-weight: 800;">{res_lr["profit_vnd"]:+,.0f} đ</div>
+                    <div style="font-size: 12px; color: {profit_col_lr}; font-weight: 700; margin-top: 3px;">{res_lr["zone"]} ({res_lr["dec_code"]})</div>
                 </div>
                 ''', unsafe_allow_html=True)
 
@@ -2346,10 +2431,10 @@ with active_tabs[0]:
             with c_xgb2:
                 profit_col_xgb = "#059669" if res_xgb['profit_vnd'] >= 0 else "#DC2626"
                 st.markdown(f'''
-                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px;">
-                    <div class="metric-label" style="font-size: 11px;">LỢI NHUẬN DỰ KIẾN</div>
-                    <div class="metric-value" style="color: {profit_col_xgb}; font-size: 16px;">{res_xgb["profit_vnd"]:,.0f} đ</div>
-                    <div style="font-size: 12px; color: #64748B; font-weight: 600;">{res_xgb["decision"]}</div>
+                <div class="metric-card" style="padding: 12px; text-align: center; margin-bottom: 8px; min-height: 85px;">
+                    <div class="metric-label" style="font-size: 11px; font-weight: 700;">LỢI NHUẬN DỰ KIẾN</div>
+                    <div class="metric-value" style="color: {profit_col_xgb}; font-size: 18px; font-weight: 800;">{res_xgb["profit_vnd"]:+,.0f} đ</div>
+                    <div style="font-size: 12px; color: {profit_col_xgb}; font-weight: 700; margin-top: 3px;">{res_xgb["zone"]} ({res_xgb["dec_code"]})</div>
                 </div>
                 ''', unsafe_allow_html=True)
 
@@ -2517,8 +2602,17 @@ if 'batch' in user['allowed_tabs']:
                 {'RevolvingUtilizationOfUnsecuredLines': 0.15, 'age': 45, 'NumberOfTime30-59DaysPastDueNotWorse': 0, 'DebtRatio': 0.25, 'MonthlyIncome': 8000, 'NumberOfOpenCreditLinesAndLoans': 8, 'NumberOfTimes90DaysLate': 0, 'NumberRealEstateLoansOrLines': 2, 'NumberOfTime60-89DaysPastDueNotWorse': 0, 'NumberOfDependents': 1, 'Loan_Amount_VND': 500000000},
                 {'RevolvingUtilizationOfUnsecuredLines': 0.85, 'age': 28, 'NumberOfTime30-59DaysPastDueNotWorse': 2, 'DebtRatio': 0.65, 'MonthlyIncome': 3000, 'NumberOfOpenCreditLinesAndLoans': 5, 'NumberOfTimes90DaysLate': 1, 'NumberRealEstateLoansOrLines': 0, 'NumberOfTime60-89DaysPastDueNotWorse': 1, 'NumberOfDependents': 0, 'Loan_Amount_VND': 50000000}
             ])
-            sample_csv = sample_df.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Tải Template Mẫu (.CSV)", data=sample_csv, file_name="Mau_Danh_Sach_Ho_So_Tin_Dung.csv", mime="text/csv", use_container_width=True)
+            sample_csv = sample_df.to_csv(index=False).encode('utf-8-sig')
+            s_excel_io = io.BytesIO()
+            with pd.ExcelWriter(s_excel_io, engine='openpyxl') as swriter:
+                sample_df.to_excel(swriter, index=False, sheet_name='Mau_Danh_Sach')
+            s_excel_bytes = s_excel_io.getvalue()
+            
+            c_tmpl1, c_tmpl2 = st.columns(2)
+            with c_tmpl1:
+                st.download_button("📊 Tải File Excel (.XLSX)", data=s_excel_bytes, file_name="Mau_Danh_Sach_Ho_So_Tin_Dung.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+            with c_tmpl2:
+                st.download_button("📥 Tải File CSV (UTF-8)", data=sample_csv, file_name="Mau_Danh_Sach_Ho_So_Tin_Dung.csv", mime="text/csv", use_container_width=True)
             st.caption("💡 **Cột Loan_Amount_VND trong file mẫu:** Là số tiền đề nghị vay (VND). Hệ thống dùng số tiền này để tính Lợi nhuận dự kiến và Hạn mức phê duyệt tối đa cho từng hồ sơ. Nếu file của bạn không có cột này, hệ thống sẽ tự động áp dụng số tiền mặc định đang chọn ở thanh bên trái.")
             
         if uploaded_file is not None:
@@ -2603,8 +2697,33 @@ if 'batch' in user['allowed_tabs']:
                         
                         st.dataframe(result_batch_df.head(15), use_container_width=True)
                         
-                        res_csv = result_batch_df.to_csv(index=False).encode('utf-8')
-                        st.download_button("📥 Tải Xuất Kết Quả 3 Mô Hình Kèm Phân Vùng 3 Vùng (.CSV)", data=res_csv, file_name=f"Ket_Qua_Cham_Diem_Danh_Muc_3_Vung_3_Mo_Hinh_{market_mode}.csv", mime="text/csv")
+                        # Xuất file kết quả: Hỗ trợ cả Excel .XLSX chuẩn và CSV có UTF-8 BOM chống triệt để lỗi font tiếng Việt trên Windows Excel
+                        res_csv = result_batch_df.to_csv(index=False).encode('utf-8-sig')
+                        
+                        excel_buf = io.BytesIO()
+                        with pd.ExcelWriter(excel_buf, engine='openpyxl') as x_writer:
+                            result_batch_df.to_excel(x_writer, index=False, sheet_name='Ket_Qua_Cham_Diem_3_Mo_Hinh')
+                        excel_bytes = excel_buf.getvalue()
+                        
+                        st.markdown("##### 📥 Xuất Kết Quả Thẩm Định Danh Mục (Đã Khắc Phục Hoàn Toàn Lỗi Font Tiếng Việt):")
+                        dl_col1, dl_col2 = st.columns(2)
+                        with dl_col1:
+                            st.download_button(
+                                "📊 TẢI KẾT QUẢ FILE EXCEL (.XLSX - KHÔNG LỖI FONT)",
+                                data=excel_bytes,
+                                file_name=f"Ket_Qua_Cham_Diem_Danh_Muc_3_Vung_{market_mode}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                type="primary",
+                                use_container_width=True
+                            )
+                        with dl_col2:
+                            st.download_button(
+                                "📥 TẢI KẾT QUẢ FILE CSV (UTF-8 BOM CHUẨN EXCEL)",
+                                data=res_csv,
+                                file_name=f"Ket_Qua_Cham_Diem_Danh_Muc_3_Vung_3_Mo_Hinh_{market_mode}.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
             except Exception as e:
                 st.error(f"Lỗi khi xử lý file: {e}")
 
@@ -2623,26 +2742,75 @@ if 'policy' in user['allowed_tabs']:
             st.markdown("##### ⚙️ Tùy Chỉnh Tham Số Kinh Tế Sản Phẩm")
             sel_pol_prod = st.selectbox("Chọn Sản phẩm Cần Khảo sát:", options=['MORTGAGE', 'AUTO', 'UNSECURED', 'CREDIT_CARD'], format_func=lambda x: dt_cfg[x]['product_name'], key="sel_pol_prod")
             
-            current_cfg = dt_cfg[sel_pol_prod]['params']
-            new_r = st.slider("Biên lãi cho vay r (%/năm):", min_value=3.0, max_value=25.0, value=float(current_cfg['r']*100), step=0.5) / 100.0
-            new_c = st.slider("Chi phí vận hành c (%/năm):", min_value=0.5, max_value=8.0, value=float(current_cfg['c']*100), step=0.5) / 100.0
-            new_lgd = st.slider("Tổn thất khi vỡ nợ LGD (%):", min_value=10.0, max_value=95.0, value=float(current_cfg['lgd']*100), step=5.0) / 100.0
+            # Lấy tham số động từ st.session_state để bảo đảm tính bền vững trên toàn hệ thống
+            if 'policy_configs' not in st.session_state:
+                st.session_state.policy_configs = {
+                    'dt': copy.deepcopy(dt_cfg),
+                    'lr': copy.deepcopy(lr_cfg),
+                    'xgb': copy.deepcopy(xgb_cfg)
+                }
+            
+            current_cfg = st.session_state.policy_configs['dt'][sel_pol_prod]['params']
+            
+            new_r = st.slider(
+                "Lãi suất cho vay danh nghĩa r (%/năm):",
+                min_value=3.0, max_value=30.0,
+                value=float(current_cfg['r']*100),
+                step=0.5,
+                key=f"sl_r_{sel_pol_prod}"
+            ) / 100.0
+            
+            new_c = st.slider(
+                "Chi phí vốn & vận hành c (%/năm):",
+                min_value=0.5, max_value=12.0,
+                value=float(current_cfg['c']*100),
+                step=0.5,
+                key=f"sl_c_{sel_pol_prod}"
+            ) / 100.0
+            
+            new_lgd = st.slider(
+                "Tổn thất khi vỡ nợ LGD (%):",
+                min_value=10.0, max_value=95.0,
+                value=float(current_cfg['lgd']*100),
+                step=5.0,
+                key=f"sl_lgd_{sel_pol_prod}"
+            ) / 100.0
             
             calc_net_m = new_r - new_c
             calc_pd_star = calc_net_m / (calc_net_m + new_lgd) if (calc_net_m + new_lgd) > 0 else 0.0
             
+            # CẬP NHẬT TRỰC TIẾP VÀO SESSION STATE TỨC THÌ
+            st.session_state.policy_configs['dt'][sel_pol_prod]['params']['r'] = new_r
+            st.session_state.policy_configs['dt'][sel_pol_prod]['params']['c'] = new_c
+            st.session_state.policy_configs['dt'][sel_pol_prod]['params']['lgd'] = new_lgd
+            st.session_state.policy_configs['dt'][sel_pol_prod]['params']['pd_breakeven'] = calc_pd_star
+            
+            st.session_state.policy_configs['lr'][sel_pol_prod]['params'] = copy.deepcopy(st.session_state.policy_configs['dt'][sel_pol_prod]['params'])
+            st.session_state.policy_configs['xgb'][sel_pol_prod]['params'] = copy.deepcopy(st.session_state.policy_configs['dt'][sel_pol_prod]['params'])
+            
             st.markdown("---")
-            st.markdown(f"**Ngưỡng hòa vốn ($PD^*$):** <span style='font-size: 20px; font-weight: bold; color: #2563EB;'>{calc_pd_star*100:.2f}%</span>", unsafe_allow_html=True)
+            st.markdown(f"**Ngưỡng hòa vốn ($PD^*$):** <span style='font-size: 22px; font-weight: 800; color: #2563EB;'>{calc_pd_star*100:.2f}%</span>", unsafe_allow_html=True)
             st.caption(f"Biên lãi thuần r - c: **{calc_net_m*100:.1f}%** | LGD: **{new_lgd*100:.1f}%**")
             
-            if st.button("💾 Cập Nhật Khẩu Vị Vào Hệ Thống", type="primary", use_container_width=True):
-                dt_cfg[sel_pol_prod]['params']['r'] = new_r
-                dt_cfg[sel_pol_prod]['params']['c'] = new_c
-                dt_cfg[sel_pol_prod]['params']['lgd'] = new_lgd
-                dt_cfg[sel_pol_prod]['params']['pd_breakeven'] = calc_pd_star
-                lr_cfg[sel_pol_prod]['params'] = dt_cfg[sel_pol_prod]['params']
-                xgb_cfg[sel_pol_prod]['params'] = dt_cfg[sel_pol_prod]['params']
-                st.success("✓ Đã cập nhật thành công khẩu vị rủi ro vào cả 3 mô hình!")
+            # Hiển thị bảng mô phỏng dòng tiền vi mô (P&L Impact) ngay lập tức
+            st.markdown(f"""
+            <div style="background: #F1F5F9; border-left: 4px solid #2563EB; border-radius: 6px; padding: 10px 12px; margin-top: 8px; font-size: 13px;">
+                <b>💡 Dòng tiền kinh tế vi mô trên 100 triệu VNĐ:</b><br/>
+                • Khách hàng tốt (y=0): Lãi ròng <b>+{calc_net_m*100_000_000:+,.0f} đ</b><br/>
+                • Khách hàng vỡ nợ (y=1): Tổn thất <b>-{new_lgd*100_000_000:,.0f} đ</b><br/>
+                • Vùng Xám (Hạn mức 70%): Lãi tốt <b>+{(0.17 - new_c)*70_000_000:+,.0f} đ</b> | Tổn thất <b>-{0.35*70_000_000:,.0f} đ</b>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col_btn_sync1, col_btn_sync2 = st.columns(2)
+            with col_btn_sync1:
+                if st.button("🔄 Đồng Bộ Sang Tab 1", type="primary", use_container_width=True):
+                    st.session_state.selected_product = sel_pol_prod
+                    st.success(f"✓ Đã đồng bộ sang Tab 1 cho sản phẩm: {dt_cfg[sel_pol_prod]['product_name']}!")
+                    st.rerun()
+            with col_btn_sync2:
+                if st.button("💾 Lưu Cố Định Toàn Bộ", use_container_width=True):
+                    st.success("✓ Đã lưu cấu hình chính sách vào bộ nhớ hoạt động!")
             st.markdown('</div>', unsafe_allow_html=True)
             
         with col_pol2:
